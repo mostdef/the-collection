@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Braitrust</title>
+  <title>Braintrust</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,7 +12,11 @@
 </head>
 <body>
   <header>
-    <h1>Braitrust</h1>
+    <h1>Braintrust</h1>
+    <nav>
+      <a href="index.html" class="nav-link active">People</a>
+      <a href="movies.html" class="nav-link">Movies</a>
+    </nav>
   </header>
 
   <main>
@@ -20,6 +24,7 @@
   </main>
 
   <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal-nav modal-nav-prev" id="modal-prev"></div>
     <div class="modal" id="modal">
       <button class="modal-close" id="modal-close">&#x2715;</button>
       <div class="modal-body">
@@ -32,6 +37,7 @@
         <img class="modal-image" id="modal-image" src="" alt="" />
       </div>
     </div>
+    <div class="modal-nav modal-nav-next" id="modal-next"></div>
   </div>
 
   <div class="gallery-strip" id="gallery-strip">

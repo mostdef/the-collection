@@ -5,12 +5,40 @@ const modalName = document.getElementById('modal-name');
 const modalTrade = document.getElementById('modal-trade');
 const modalBio = document.getElementById('modal-bio');
 const modalWorks = document.getElementById('modal-works');
+const modalPrev = document.getElementById('modal-prev');
+const modalNext = document.getElementById('modal-next');
 const galleryStrip = document.getElementById('gallery-strip');
 const galleryTrack = document.getElementById('gallery-track');
 const galleryPrev = document.getElementById('gallery-prev');
 const galleryNext = document.getElementById('gallery-next');
+let currentIndex = 0;
+let activePersonIndex = 0;
 
-function openModal(person) {
+function buildNavTile(person) {
+  const tile = document.createElement('div');
+
+  const img = document.createElement('img');
+  img.className = 'modal-nav-img';
+  img.src = person.image;
+  img.alt = person.name;
+
+  const name = document.createElement('span');
+  name.className = 'modal-nav-name';
+  name.textContent = person.name;
+
+  const trade = document.createElement('span');
+  trade.className = 'modal-nav-trade';
+  trade.textContent = person.trade;
+
+  tile.appendChild(img);
+  tile.appendChild(name);
+  tile.appendChild(trade);
+  return tile;
+}
+
+function openModal(person, index) {
+  activePersonIndex = index;
+
   modalImage.src = person.image;
   modalImage.alt = person.name;
   modalName.textContent = person.name;
@@ -19,7 +47,6 @@ function openModal(person) {
 
   const works = person.works || [];
 
-  // Mobile: grid inside modal
   modalWorks.innerHTML = '';
   works.forEach(src => {
     const img = document.createElement('img');
@@ -28,7 +55,6 @@ function openModal(person) {
     modalWorks.appendChild(img);
   });
 
-  // Desktop: gallery strip at bottom
   galleryTrack.innerHTML = '';
   works.forEach(src => {
     const img = document.createElement('img');
@@ -37,6 +63,25 @@ function openModal(person) {
     galleryTrack.appendChild(img);
   });
   galleryTrack.scrollLeft = 0;
+  currentIndex = 0;
+
+  // Prev tile
+  modalPrev.innerHTML = '';
+  const prevPerson = people[activePersonIndex - 1];
+  if (prevPerson) {
+    const tile = buildNavTile(prevPerson);
+    tile.addEventListener('click', () => openModal(prevPerson, activePersonIndex - 1));
+    modalPrev.appendChild(tile);
+  }
+
+  // Next tile
+  modalNext.innerHTML = '';
+  const nextPerson = people[activePersonIndex + 1];
+  if (nextPerson) {
+    const tile = buildNavTile(nextPerson);
+    tile.addEventListener('click', () => openModal(nextPerson, activePersonIndex + 1));
+    modalNext.appendChild(tile);
+  }
 
   backdrop.classList.add('open');
   galleryStrip.classList.add('open');
@@ -61,8 +106,15 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowLeft') scrollGallery(-1);
 });
 
+function scrollToIndex(index) {
+  const imgs = galleryTrack.querySelectorAll('img');
+  if (!imgs.length) return;
+  currentIndex = Math.max(0, Math.min(index, imgs.length - 1));
+  imgs[currentIndex].scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+}
+
 function scrollGallery(direction) {
-  galleryTrack.scrollBy({ left: direction * 520, behavior: 'smooth' });
+  scrollToIndex(currentIndex + direction);
 }
 
 galleryPrev.addEventListener('click', () => scrollGallery(-1));
@@ -70,10 +122,10 @@ galleryNext.addEventListener('click', () => scrollGallery(1));
 
 function render(list) {
   grid.innerHTML = '';
-  list.forEach(person => {
+  list.forEach((person, index) => {
     const card = document.createElement('div');
     card.className = 'card';
-    card.addEventListener('click', () => openModal(person));
+    card.addEventListener('click', () => openModal(person, index));
 
     const img = document.createElement('img');
     img.className = 'card-image';

@@ -26,6 +26,28 @@ header h1 {
   color: #111;
 }
 
+nav {
+  display: flex;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.nav-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #bbb;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+.nav-link.active {
+  color: #111;
+}
+
+.nav-link:hover {
+  color: #111;
+}
+
 main {
   padding: 0 48px 80px;
 }
@@ -48,6 +70,10 @@ main {
   object-fit: cover;
   display: block;
   background: #f0f0f0;
+}
+
+.movie-poster {
+  aspect-ratio: 2 / 3;
 }
 
 .card-info {
@@ -85,6 +111,7 @@ main {
 
 .modal-backdrop.open {
   display: flex;
+  gap: 16px;
 }
 
 .modal {
@@ -100,6 +127,54 @@ main {
   display: flex;
   flex-direction: row;
   align-items: stretch;
+}
+
+/* Person nav tiles */
+
+.modal-nav {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  align-self: center;
+}
+
+.modal-nav:hover {
+  opacity: 1;
+}
+
+.modal-nav:empty {
+  pointer-events: none;
+}
+
+.modal-nav-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+  background: #f0f0f0;
+}
+
+.modal-nav-name {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: -0.01em;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.modal-nav-trade {
+  display: block;
+  font-size: 11px;
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+  margin-top: 2px;
 }
 
 .modal-close {
@@ -126,6 +201,8 @@ main {
   display: block;
   object-fit: cover;
   object-position: top;
+  align-self: flex-start;
+  aspect-ratio: 3 / 4;
 }
 
 .modal-info {
@@ -178,16 +255,18 @@ main {
 
 .gallery-strip.open {
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  padding: 24px 0;
 }
 
 .gallery-track {
   display: flex;
   flex: 1;
+  align-items: center;
   overflow-x: auto;
   scroll-behavior: smooth;
   scrollbar-width: none;
-  gap: 2px;
+  gap: 8px;
 }
 
 .gallery-track::-webkit-scrollbar {
@@ -195,7 +274,7 @@ main {
 }
 
 .gallery-track img {
-  height: 100%;
+  height: calc(500px - 48px);
   width: auto;
   flex-shrink: 0;
   object-fit: cover;

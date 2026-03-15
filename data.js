@@ -125,4 +125,35 @@ const people = [
       "images/works/tobias-van-schneider/08-hovs-artifact.jpg"
     ]
   }
+  ,
+  {
+    name: "Jack Fisk",
+    trade: "Production Designer",
+    image: "images/jack-fisk.jpg",
+    bio: "Jack Fisk is one of the great unsung collaborators in American cinema. Working across five decades, he built the visual worlds for Terrence Malick's most luminous films — 'Badlands', 'Days of Heaven', 'The Thin Red Line', 'The Tree of Life' — as well as Paul Thomas Anderson's 'There Will Be Blood' and 'The Master'. His sets don't look designed; they look inhabited. He is married to Sissy Spacek, whose early films he also shaped. His work operates in the background of greatness, which is exactly where the best production design lives.",
+    works: [
+      "images/works/jack-fisk/01-days-of-heaven-magic.jpg",
+      "images/works/jack-fisk/02-days-of-heaven.jpg",
+      "images/works/jack-fisk/03-malick.jpg",
+      "images/works/jack-fisk/04-there-will-be-blood.jpg",
+      "images/works/jack-fisk/05-mulholland.jpg",
+      "images/works/jack-fisk/06-carrie.jpg"
+    ]
+  },
+  {
+    name: "Susan Kare",
+    trade: "Graphic Designer",
+    image: "images/susan-kare.jpg",
+    bio: "Susan Kare designed the visual language of the personal computer. Her icons for the original Macintosh — the trash can, the happy Mac, the bomb, the hand cursor — gave a machine a face and made it approachable for the first time. She also created the Chicago and Geneva typefaces, and designed the icons for Windows 3.0 Solitaire, arguably the most-seen card design in history. Her work was pixel art before the term existed, and it endures because it was always rooted in clarity and wit rather than decoration.",
+    works: [
+      "images/works/susan-kare/01-happy-mac.jpg",
+      "images/works/susan-kare/02-chicago-font.jpg",
+      "images/works/susan-kare/03-bomb.jpg",
+      "images/works/susan-kare/04-sad-mac.jpg",
+      "images/works/susan-kare/05-macintosh-128k.jpg",
+      "images/works/susan-kare/06-next-logo.jpg",
+      "images/works/susan-kare/07-steve-jobs-mac.jpg",
+      "images/works/susan-kare/08-chicago-ec.jpg"
+    ]
+  }
 ];
