@@ -1,6 +1,6 @@
 const grid = document.getElementById('grid');
 
-function drawCrease(ctx, pos, isHorizontal, w, h) {
+function drawCrease(ctx, pos, isHorizontal, w, h, strength = 1) {
   const len = (isHorizontal ? w : h) * 1.6;
   const angle = (Math.random() - 0.5) * 0.04;
 
@@ -10,17 +10,17 @@ function drawCrease(ctx, pos, isHorizontal, w, h) {
 
   const hl = ctx.createLinearGradient(0, -5, 0, 2);
   hl.addColorStop(0, 'rgba(255,255,255,0)');
-  hl.addColorStop(0.5, 'rgba(255,255,255,0.92)');
-  hl.addColorStop(1, 'rgba(255,255,255,0.05)');
+  hl.addColorStop(0.5, `rgba(255,255,255,${0.92 * strength})`);
+  hl.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = hl;
-  ctx.fillRect(-len / 2, -5, len, 7);
+  ctx.fillRect(-len / 2, -6 * strength, len, 8 * strength);
 
-  const sh = ctx.createLinearGradient(0, 1, 0, 14);
-  sh.addColorStop(0, 'rgba(0,0,0,0.55)');
-  sh.addColorStop(0.35, 'rgba(0,0,0,0.18)');
+  const sh = ctx.createLinearGradient(0, 1, 0, 18 * strength);
+  sh.addColorStop(0, `rgba(0,0,0,${0.55 * strength})`);
+  sh.addColorStop(0.35, `rgba(0,0,0,${0.2 * strength})`);
   sh.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = sh;
-  ctx.fillRect(-len / 2, 1, len, 13);
+  ctx.fillRect(-len / 2, 1, len, 18 * strength);
 
   ctx.restore();
 }
@@ -52,8 +52,8 @@ function generateFoldTexture() {
   // Slight positional imprecision makes folds feel hand-folded
   const jitter = () => (Math.random() - 0.5) * 6;
 
-  pattern.h.forEach(t => drawCrease(ctx, h * t + jitter(), true,  w, h));
-  pattern.v.forEach(t => drawCrease(ctx, w * t + jitter(), false, w, h));
+  pattern.h.forEach(t => drawCrease(ctx, h * t + jitter(), true,  w, h, 1));
+  pattern.v.forEach(t => drawCrease(ctx, w * t + jitter(), false, w, h, 2.2));
 
   return canvas.toDataURL('image/png');
 }
