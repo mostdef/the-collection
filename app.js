@@ -135,7 +135,7 @@ function addTilt(card) {
     card.style.boxShadow = `${-x * 10}px ${y * 10}px 24px rgba(0,0,0,0.2)`;
 
     sheen.style.opacity = '1';
-    sheen.style.background = `radial-gradient(circle at ${(x + 0.5) * 100}% ${(y + 0.5) * 100}%, rgba(255,255,255,0.28) 0%, transparent 65%)`;
+    sheen.style.background = `radial-gradient(circle at ${(x + 0.5) * 100}% ${(y + 0.5) * 100}%, rgba(255,255,255,0.12) 0%, transparent 65%)`;
   });
 
   card.addEventListener('mouseleave', () => {
