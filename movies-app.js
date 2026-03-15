@@ -11,7 +11,7 @@ function addTilt(card) {
     const y = (e.clientY - rect.top) / rect.height - 0.5;
 
     card.style.transition = 'transform 0.05s linear, box-shadow 0.05s linear';
-    card.style.transform = `perspective(800px) rotateY(${x * 10}deg) rotateX(${-y * 10}deg) scale(1.03)`;
+    card.style.transform = `perspective(800px) rotateY(${x * 7}deg) rotateX(${-y * 7}deg) scale(1.03)`;
     card.style.boxShadow = `${-x * 10}px ${y * 10}px 24px rgba(0,0,0,0.2)`;
 
     sheen.style.opacity = '1';
