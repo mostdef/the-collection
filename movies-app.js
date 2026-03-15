@@ -11,11 +11,11 @@ function addTilt(card) {
     const y = (e.clientY - rect.top) / rect.height - 0.5;
 
     card.style.transition = 'transform 0.05s linear, box-shadow 0.05s linear';
-    card.style.transform = `perspective(800px) rotateY(${x * 7}deg) rotateX(${-y * 7}deg) scale(1.03)`;
+    card.style.transform = `perspective(800px) rotateY(${x * 7}deg) rotateX(${-y * 7}deg) scale(1.02)`;
     card.style.boxShadow = `${-x * 10}px ${y * 10}px 24px rgba(0,0,0,0.2)`;
 
     sheen.style.opacity = '1';
-    sheen.style.background = `radial-gradient(circle at ${(x + 0.5) * 100}% ${(y + 0.5) * 100}%, rgba(255,255,255,0.12) 0%, transparent 65%)`;
+    sheen.style.background = `radial-gradient(circle at ${(0.5 - x) * 100}% ${(0.5 - y) * 100}%, rgba(255,255,255,0.12) 0%, transparent 65%)`;
   });
 
   card.addEventListener('mouseleave', () => {
