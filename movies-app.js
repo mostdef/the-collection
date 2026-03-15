@@ -2,25 +2,46 @@ const grid = document.getElementById('grid');
 
 function drawCrease(ctx, pos, isHorizontal, w, h, strength = 1) {
   const len = (isHorizontal ? w : h) * 1.6;
+  const spread = Math.round(18 * strength);
+  const hlOpacity = Math.min(1, 0.92 * strength);
+  const shOpacity = Math.min(1, 0.6 * strength);
   const angle = (Math.random() - 0.5) * 0.04;
 
   ctx.save();
   ctx.translate(isHorizontal ? w / 2 : pos, isHorizontal ? pos : h / 2);
   ctx.rotate(angle);
 
-  const hl = ctx.createLinearGradient(0, -5, 0, 2);
-  hl.addColorStop(0, 'rgba(255,255,255,0)');
-  hl.addColorStop(0.5, `rgba(255,255,255,${0.92 * strength})`);
-  hl.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = hl;
-  ctx.fillRect(-len / 2, -6 * strength, len, 8 * strength);
+  if (isHorizontal) {
+    // Gradient runs top → bottom (perpendicular to horizontal crease)
+    const hl = ctx.createLinearGradient(0, -5, 0, 2);
+    hl.addColorStop(0, 'rgba(255,255,255,0)');
+    hl.addColorStop(0.5, `rgba(255,255,255,${hlOpacity})`);
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = hl;
+    ctx.fillRect(-len / 2, -5, len, 7);
 
-  const sh = ctx.createLinearGradient(0, 1, 0, 18 * strength);
-  sh.addColorStop(0, `rgba(0,0,0,${0.55 * strength})`);
-  sh.addColorStop(0.35, `rgba(0,0,0,${0.2 * strength})`);
-  sh.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = sh;
-  ctx.fillRect(-len / 2, 1, len, 18 * strength);
+    const sh = ctx.createLinearGradient(0, 1, 0, spread);
+    sh.addColorStop(0, `rgba(0,0,0,${shOpacity})`);
+    sh.addColorStop(0.4, `rgba(0,0,0,${shOpacity * 0.35})`);
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sh;
+    ctx.fillRect(-len / 2, 1, len, spread);
+  } else {
+    // Gradient runs left → right (perpendicular to vertical crease)
+    const hl = ctx.createLinearGradient(-5, 0, 2, 0);
+    hl.addColorStop(0, 'rgba(255,255,255,0)');
+    hl.addColorStop(0.5, `rgba(255,255,255,${hlOpacity})`);
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = hl;
+    ctx.fillRect(-5, -len / 2, 7, len);
+
+    const sh = ctx.createLinearGradient(1, 0, spread, 0);
+    sh.addColorStop(0, `rgba(0,0,0,${shOpacity})`);
+    sh.addColorStop(0.4, `rgba(0,0,0,${shOpacity * 0.35})`);
+    sh.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = sh;
+    ctx.fillRect(1, -len / 2, spread, len);
+  }
 
   ctx.restore();
 }
