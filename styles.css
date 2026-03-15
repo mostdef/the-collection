@@ -188,23 +188,36 @@ main {
 .movie-card,
 .people-card {
   position: relative;
+  background: #fff;
   box-shadow: 0 2px 12px rgba(0,0,0,0.1);
   will-change: transform;
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 6px;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
 }
 
 .movie-card {
   gap: 8px;
 }
 
-.movie-card .card-info,
+.movie-card .card-info {
+  padding: 0 0 8px 4px;
+  margin-top: 0;
+  background: #fff;
+}
+
 .people-card .card-info {
   padding: 0 0 8px 4px;
   margin-top: 0;
 }
 
-.movie-card .card-name,
+.movie-card .card-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
 .people-card .card-name {
   font-family: 'Playfair Display', Georgia, serif;
   font-weight: 600;
@@ -212,10 +225,14 @@ main {
   letter-spacing: 0;
 }
 
-.movie-card .card-trade,
+.movie-card .card-trade {
+  font-size: 12px;
+  margin-top: 0;
+}
+
 .people-card .card-trade {
   font-size: 12px;
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .card-sheen {
@@ -230,7 +247,7 @@ main {
 .card-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 0;
 }
 
 .card-name {
@@ -452,6 +469,10 @@ main {
 
 .card {
   cursor: pointer;
+}
+
+.sortable-ghost {
+  opacity: 0;
 }
 
 @media (max-width: 640px) {

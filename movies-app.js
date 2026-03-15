@@ -197,6 +197,13 @@ function render(list) {
 
 render(movies);
 
+Sortable.create(grid, {
+  animation: 600,
+  easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
+  swapThreshold: 0.3,
+  ghostClass: 'sortable-ghost',
+});
+
 // Controls
 let grainEnabled = true;
 let grainLevel = 0.04;
