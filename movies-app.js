@@ -201,28 +201,41 @@ render(movies);
 // Controls
 let grainEnabled = true;
 let grainLevel = 0.45;
+let darkBoost = 10;
 
 function applyGrain() {
   const opacity = grainEnabled ? grainLevel : 0;
+  const multiplier = 1 + darkBoost / 100;
   document.querySelectorAll('.poster-texture-hl').forEach(el => {
-    el.style.opacity = Math.min(1, opacity * 1.10);
+    el.style.opacity = Math.min(1, opacity * multiplier);
   });
   document.querySelectorAll('.poster-texture-sh').forEach(el => {
     el.style.opacity = opacity;
   });
 }
 
-const toggle = document.getElementById('texture-toggle');
-const slider = document.getElementById('grain-slider');
+const toggle     = document.getElementById('texture-toggle');
+const slider     = document.getElementById('grain-slider');
+const grainValue = document.getElementById('grain-value');
+const darkSlider = document.getElementById('dark-slider');
+const darkValue  = document.getElementById('dark-value');
 
 toggle.addEventListener('click', () => {
   grainEnabled = !grainEnabled;
   toggle.classList.toggle('inactive', !grainEnabled);
   slider.disabled = !grainEnabled;
+  darkSlider.disabled = !grainEnabled;
   applyGrain();
 });
 
 slider.addEventListener('input', () => {
   grainLevel = parseFloat(slider.value);
+  grainValue.textContent = Math.round(grainLevel * 100) + '%';
+  applyGrain();
+});
+
+darkSlider.addEventListener('input', () => {
+  darkBoost = parseInt(darkSlider.value);
+  darkValue.textContent = '+' + darkBoost + '%';
   applyGrain();
 });
