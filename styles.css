@@ -76,6 +76,21 @@ main {
   aspect-ratio: 2 / 3;
 }
 
+.movie-card {
+  position: relative;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  will-change: transform;
+}
+
+.card-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: 2;
+}
+
 .card-info {
   display: flex;
   flex-direction: column;
