@@ -74,6 +74,53 @@ main {
 
 .movie-poster {
   aspect-ratio: 2 / 3;
+  display: block;
+  width: 100%;
+}
+
+.poster-wrap {
+  position: relative;
+  display: block;
+}
+
+.poster-texture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-size: 128px 128px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.45;
+  transition: opacity 0.4s ease;
+}
+
+body.textures-off .poster-texture {
+  opacity: 0;
+}
+
+.texture-toggle {
+  position: fixed;
+  top: 68px;
+  right: 48px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #111;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 10;
+  transition: color 0.15s;
+}
+
+.texture-toggle.inactive {
+  color: #bbb;
+}
+
+.texture-toggle:hover {
+  color: #111;
 }
 
 .movie-card,
