@@ -25,11 +25,10 @@
 
   <div class="grain-control">
     <button class="texture-toggle" id="texture-toggle">Grain</button>
-    <input type="range" id="grain-slider" class="grain-slider" min="0" max="1" step="0.01" value="0.45">
-    <span class="grain-value" id="grain-value">45%</span>
-    <span class="grain-label">Dark</span>
-    <input type="range" id="dark-slider" class="grain-slider" min="0" max="100" step="1" value="10">
-    <span class="grain-value" id="dark-value">+10%</span>
+    <input type="range" id="grain-slider" class="grain-slider" min="0" max="1" step="0.01" value="0.04" hidden>
+    <span class="grain-value" id="grain-value" hidden>4%</span>
+    <input type="range" id="dark-slider" class="grain-slider" min="0" max="100" step="1" value="100" hidden>
+    <span class="grain-value" id="dark-value" hidden>+100%</span>
   </div>
   <script src="movies-data.js"></script>
   <script src="movies-app.js"></script>

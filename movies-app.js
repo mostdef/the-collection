@@ -155,7 +155,6 @@ function render(list) {
 
     const imgWrap = document.createElement('div');
     imgWrap.className = 'poster-wrap';
-
     const img = document.createElement('img');
     img.className = 'card-image movie-poster';
     img.src = movie.poster;
@@ -200,8 +199,8 @@ render(movies);
 
 // Controls
 let grainEnabled = true;
-let grainLevel = 0.45;
-let darkBoost = 10;
+let grainLevel = 0.04;
+let darkBoost = 100;
 
 function applyGrain() {
   const opacity = grainEnabled ? grainLevel : 0;
@@ -213,6 +212,8 @@ function applyGrain() {
     el.style.opacity = opacity;
   });
 }
+
+applyGrain();
 
 const toggle     = document.getElementById('texture-toggle');
 const slider     = document.getElementById('grain-slider');
@@ -239,3 +240,4 @@ darkSlider.addEventListener('input', () => {
   darkValue.textContent = '+' + darkBoost + '%';
   applyGrain();
 });
+
