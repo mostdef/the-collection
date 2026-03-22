@@ -61,6 +61,11 @@ nav {
   display: flex;
   gap: 24px;
   margin-top: 12px;
+  width: 100%;
+}
+
+.nav-link-settings {
+  margin-left: auto;
 }
 
 .nav-link {
@@ -148,6 +153,31 @@ main {
   align-items: center;
   gap: 14px;
   margin-bottom: 14px;
+}
+
+.rec-enable-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 0.03em;
+}
+
+.rec-enable-label input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  accent-color: #4a9;
+  flex-shrink: 0;
+}
+
+.rec-banner-disabled {
+  opacity: 0.25;
+  pointer-events: none;
+  user-select: none;
 }
 
 .rec-toggle-row {

@@ -672,7 +672,11 @@ let totalCost = 0; // initialized after TOTAL_COST_KEY is defined below
 const sessionExcluded = new Set();
 const REC_CACHE_KEY      = 'braintrust_rec_cache_v2';
 const REC_MODEL_KEY      = 'braintrust_rec_model';
+const REC_ENABLED_KEY    = 'braintrust_rec_enabled';
 const STARTING_BAL_KEY   = 'braintrust_starting_balance';
+
+function isRecEnabled() { return localStorage.getItem(REC_ENABLED_KEY) !== '0'; }
+function setRecEnabled(v) { localStorage.setItem(REC_ENABLED_KEY, v ? '1' : '0'); }
 
 function getRecModel() {
   return localStorage.getItem(REC_MODEL_KEY) || 'sonnet';
@@ -755,6 +759,24 @@ function saveRecCache(rec) {
 }
 
 async function fetchRecommendation() {
+  // When disabled, just show cached item (no API call)
+  if (!isRecEnabled()) {
+    const cached = loadRecCache();
+    if (cached?.title) {
+      // Only exclude titles actually in user's lists, not shown-recs history
+      const inLists = new Set([
+        ...movies.map(m => m.title.toLowerCase()),
+        ...loadBanned().map(m => m.title.toLowerCase()),
+        ...loadWatchlist().map(m => m.title.toLowerCase()),
+        ...loadMaybe().map(m => m.title.toLowerCase()),
+        ...loadMeh().map(m => m.title.toLowerCase()),
+      ]);
+      if (!inLists.has(cached.title.toLowerCase())) currentRec = cached;
+    }
+    recLoading = false;
+    renderRecommendation();
+    return;
+  }
   // Prevent concurrent fetches — if one is already in flight, ignore
   if (recFetchInFlight) return;
   recFetchInFlight = true;
@@ -803,47 +825,58 @@ async function fetchRecommendation() {
 }
 
 
-function renderRecommendation() {
+// Build the heading row once — never rebuilt, controls are stable DOM
+function initRecHeading() {
   const wrap = document.getElementById('recommendation');
-  wrap.innerHTML = '';
 
   const headingRow = document.createElement('div');
   headingRow.className = 'rec-heading-row';
+
   const heading = document.createElement('div');
   heading.className = 'rec-heading';
   heading.innerHTML = '🎬 Something New To Watch Today?!';
   headingRow.appendChild(heading);
 
-  const currentModel = getRecModel();
+  // Enable checkbox — plain div wrapper avoids <label> browser quirks
+  const enableWrap = document.createElement('div');
+  enableWrap.className = 'rec-enable-label';
+  const enabledCheckbox = document.createElement('input');
+  enabledCheckbox.type = 'checkbox';
+  enabledCheckbox.checked = isRecEnabled();
+  enabledCheckbox.addEventListener('change', () => {
+    setRecEnabled(enabledCheckbox.checked);
+    renderRecommendation();
+  });
+  enableWrap.appendChild(enabledCheckbox);
+  enableWrap.appendChild(document.createTextNode('Recommendations enabled'));
+  headingRow.appendChild(enableWrap);
+
+  // Model toggle
   const modelToggle = document.createElement('div');
+  modelToggle.id = 'rec-model-toggle';
   modelToggle.className = 'rec-model-toggle';
-  modelToggle.innerHTML = `
-    <span class="rec-model-label ${currentModel === 'sonnet' ? 'active' : ''}">Sonnet</span>
-    <div class="rec-model-switch ${currentModel === 'opus' ? 'on' : ''}">
-      <div class="rec-model-knob"></div>
-    </div>
-    <span class="rec-model-label ${currentModel === 'opus' ? 'active' : ''}">Opus</span>
-  `;
+  function refreshToggle() {
+    const m = getRecModel();
+    modelToggle.innerHTML = `
+      <span class="rec-model-label ${m === 'sonnet' ? 'active' : ''}">Sonnet</span>
+      <div class="rec-model-switch ${m === 'opus' ? 'on' : ''}">
+        <div class="rec-model-knob"></div>
+      </div>
+      <span class="rec-model-label ${m === 'opus' ? 'active' : ''}">Opus</span>
+    `;
+  }
+  refreshToggle();
   modelToggle.addEventListener('click', () => {
     const next = getRecModel() === 'sonnet' ? 'opus' : 'sonnet';
     setRecModel(next);
-    renderRecommendation();
+    refreshToggle();
+    updateRecCostHint();
   });
-  const costHint = document.createElement('span');
-  costHint.className = 'rec-cost-hint';
-  const perSearch = currentRec?.api_cost != null
-    ? `$${currentRec.api_cost.toFixed(4)}`
-    : (currentModel === 'opus' ? '~$0.08' : '~$0.02');
-  const parts = [`${perSearch} / search`];
-  if (sessionSearches > 0) parts.push(`<span class="rec-cost-session">$${sessionCost.toFixed(4)} session (${sessionSearches})</span>`);
-  if (totalCost > 0) parts.push(`<span class="rec-cost-total">$${totalCost.toFixed(4)} total</span>`);
 
-  const startingBal = parseFloat(localStorage.getItem(STARTING_BAL_KEY) || '') || null;
-  if (startingBal !== null) {
-    const remaining = startingBal - totalCost;
-    parts.push(`<span class="rec-cost-remaining ${remaining < 1 ? 'rec-cost-low' : ''}">$${remaining.toFixed(2)} remaining</span>`);
-  }
-  costHint.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+  // Cost hint
+  const costHint = document.createElement('span');
+  costHint.id = 'rec-cost-hint';
+  costHint.className = 'rec-cost-hint';
 
   const rightGroup = document.createElement('div');
   rightGroup.className = 'rec-right-group';
@@ -851,6 +884,36 @@ function renderRecommendation() {
   rightGroup.appendChild(costHint);
   headingRow.appendChild(rightGroup);
   wrap.appendChild(headingRow);
+
+  // Stable content area — only this gets rebuilt by renderRecommendation()
+  const contentArea = document.createElement('div');
+  contentArea.id = 'rec-content-area';
+  wrap.appendChild(contentArea);
+}
+
+function updateRecCostHint() {
+  const hint = document.getElementById('rec-cost-hint');
+  if (!hint) return;
+  const currentModel = getRecModel();
+  const perSearch = currentRec?.api_cost != null
+    ? `$${currentRec.api_cost.toFixed(4)}`
+    : (currentModel === 'opus' ? '~$0.08' : '~$0.02');
+  const parts = [`${perSearch} / search`];
+  if (sessionSearches > 0) parts.push(`<span class="rec-cost-session">$${sessionCost.toFixed(4)} session (${sessionSearches})</span>`);
+  if (totalCost > 0) parts.push(`<span class="rec-cost-total">$${totalCost.toFixed(4)} total</span>`);
+  const startingBal = parseFloat(localStorage.getItem(STARTING_BAL_KEY) || '') || null;
+  if (startingBal !== null) {
+    const remaining = startingBal - totalCost;
+    parts.push(`<span class="rec-cost-remaining ${remaining < 1 ? 'rec-cost-low' : ''}">$${remaining.toFixed(2)} remaining</span>`);
+  }
+  hint.innerHTML = parts.join(' &nbsp;·&nbsp; ');
+}
+
+function renderRecommendation() {
+  const area = document.getElementById('rec-content-area');
+  if (!area) return;
+  area.innerHTML = '';
+  updateRecCostHint();
 
   if (recLoading) {
     const loadingBanner = document.createElement('div');
@@ -888,7 +951,7 @@ function renderRecommendation() {
           <div class="rec-skel-bar" style="width:540px;height:100%;border-radius:0;flex-shrink:0"></div>
         </div>
       </div>`;
-    wrap.appendChild(loadingBanner);
+    area.appendChild(loadingBanner);
     return;
   }
 
@@ -905,7 +968,7 @@ function renderRecommendation() {
     retryBtn.textContent = 'Retry';
     retryBtn.addEventListener('click', fetchRecommendation);
     errorBanner.appendChild(retryBtn);
-    wrap.appendChild(errorBanner);
+    area.appendChild(errorBanner);
     return;
   }
 
@@ -1138,11 +1201,12 @@ function renderRecommendation() {
 
   const banner = document.createElement('div');
   banner.className = 'rec-banner';
+  if (!isRecEnabled()) banner.classList.add('rec-banner-disabled');
   banner.appendChild(bg);
   banner.appendChild(overlay);
   banner.appendChild(content);
 
-  wrap.appendChild(banner);
+  area.appendChild(banner);
   applyGrain();
 }
 
@@ -1853,6 +1917,7 @@ function syncOrderFromDOM() {
 loadMovies();
 render(movies);
 renderGridNav();
+initRecHeading();
 fetchRecommendation();
 
 

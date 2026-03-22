@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Braintrust — Movies</title>
+  <title>The Curator — Movies</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -12,13 +12,10 @@
 </head>
 <body>
   <header>
-    <h1>Braintrust</h1>
+    <h1>The Curator</h1>
     <nav>
-      <a href="index.html" class="nav-link">People</a>
       <a href="movies.html" class="nav-link active">Movies</a>
-      <a href="tv-series.html" class="nav-link">TV Series</a>
-      <a href="books.html" class="nav-link">Books</a>
-      <a href="settings.html" class="nav-link">Settings</a>
+      <a href="settings.html" class="nav-link nav-link-settings">Settings</a>
     </nav>
   </header>
 
@@ -34,13 +31,6 @@
     <div class="grid" id="grid-banned"    style="display:none"></div>
   </main>
 
-  <div class="grain-control">
-    <button class="texture-toggle" id="texture-toggle">Grain</button>
-    <input type="range" id="grain-slider" class="grain-slider" min="0" max="1" step="0.01" value="0.04" hidden>
-    <span class="grain-value" id="grain-value" hidden>4%</span>
-    <input type="range" id="dark-slider" class="grain-slider" min="0" max="100" step="1" value="100" hidden>
-    <span class="grain-value" id="dark-value" hidden>+100%</span>
-  </div>
   <div id="search-modal-backdrop" class="search-modal-backdrop" style="display:none">
     <div class="search-modal">
       <div class="search-modal-header">
