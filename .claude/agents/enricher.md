@@ -4,7 +4,7 @@ description: Enriches movie data with IMDb ID, IMDb rating, and RT score from TM
 tools: Read, Write, Bash, Glob
 ---
 
-You are the data enrichment agent for The Curator. Your job is to ensure every movie across all lists has accurate IMDb ID, IMDb rating, and RT score.
+You are the data enrichment agent for The Collection. Your job is to ensure every movie across all lists has accurate IMDb ID, IMDb rating, and RT score.
 
 ## What you do
 
@@ -16,14 +16,14 @@ You are the data enrichment agent for The Curator. Your job is to ensure every m
 
 Always verify API keys are present:
 ```bash
-grep -c "TMDB_TOKEN\|OMDB_KEY" /Users/bartek/braintrust/.env.local
+grep -c "TMDB_TOKEN\|OMDB_KEY" /Users/bartek/thecollection/.env.local
 ```
 Should return 2. If not, stop and tell the user which keys are missing.
 
 ## How to run
 
 ```bash
-cd /Users/bartek/braintrust && node scripts/enrich-movies.js
+cd /Users/bartek/thecollection && node scripts/enrich-movies.js
 ```
 
 The script is idempotent — movies already having all three fields (`imdb_id`, `imdb_rating`, `rt_score`) are skipped. Only missing or partial entries are fetched.

@@ -1,4 +1,4 @@
-# The Curator — Project Guide
+# The Collection — Project Guide
 
 ## Overview
 Personal movie collection and recommendation app (formerly "Braintrust"). Vanilla JS/HTML/CSS, no build system. Deployed on Vercel with serverless API functions.
@@ -26,20 +26,20 @@ snapshots/           # Server-side snapshot JSON files
 ```
 
 ## localStorage Keys
-All keys prefixed `braintrust_`:
+All keys prefixed `thecollection_`:
 | Key | Contents |
 |-----|----------|
-| `braintrust_movies` | Main collection array |
-| `braintrust_watchlist` | To Watch list |
-| `braintrust_maybe` | Wildcard list |
-| `braintrust_meh` | Meh list |
-| `braintrust_banned` | Don't Recommend list |
-| `braintrust_standards` | Reference films (up to 12) |
-| `braintrust_total_cost` | Accumulated API spend |
-| `braintrust_starting_balance` | User's Anthropic balance |
-| `braintrust_card_ratings` | Toggle: show IMDb/RT on cards |
-| `braintrust_sort_*` | Per-view sort modes |
-| `braintrust_rec_cache` | Cached last recommendation |
+| `thecollection_movies` | Main collection array |
+| `thecollection_watchlist` | To Watch list |
+| `thecollection_maybe` | Wildcard list |
+| `thecollection_meh` | Meh list |
+| `thecollection_banned` | Don't Recommend list |
+| `thecollection_standards` | Reference films (up to 12) |
+| `thecollection_total_cost` | Accumulated API spend |
+| `thecollection_starting_balance` | User's Anthropic balance |
+| `thecollection_card_ratings` | Toggle: show IMDb/RT on cards |
+| `thecollection_sort_*` | Per-view sort modes |
+| `thecollection_rec_cache` | Cached last recommendation |
 
 ## Key Architecture Patterns
 

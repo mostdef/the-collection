@@ -1,5 +1,5 @@
 const PERSONA_ENABLED = false; // set to false to disable persona & stats (saves API credits)
-const PERSONA_HIDDEN_KEY = 'braintrust_persona_hidden';
+const PERSONA_HIDDEN_KEY = 'thecollection_persona_hidden';
 function isPersonaHidden() { return localStorage.getItem(PERSONA_HIDDEN_KEY) === '1'; }
 function setPersonaHidden(v) { localStorage.setItem(PERSONA_HIDDEN_KEY, v ? '1' : '0'); }
 
@@ -325,8 +325,8 @@ function renderStandardsSection() {
 
 // ── Cinema Persona ───────────────────────────────────────────────────────────
 
-const PERSONA_CACHE_KEY       = 'braintrust_persona_cache_v4';
-const PERSONA_STATS_CACHE_KEY = 'braintrust_persona_stats_v2';
+const PERSONA_CACHE_KEY       = 'thecollection_persona_cache_v4';
+const PERSONA_STATS_CACHE_KEY = 'thecollection_persona_stats_v2';
 let personaIndex          = 0;
 let personaBlobUrls       = [];
 let personaRenderedForKey = null;
@@ -681,7 +681,7 @@ function render(list) {
   markClean('collection');
 }
 
-const CARD_RATINGS_KEY = 'braintrust_card_ratings';
+const CARD_RATINGS_KEY = 'thecollection_card_ratings';
 function isCardRatingsEnabled() {
   return localStorage.getItem(CARD_RATINGS_KEY) !== 'false';
 }
@@ -721,12 +721,12 @@ let sessionCost = 0;
 let sessionSearches = 0;
 let totalCost = 0; // initialized after TOTAL_COST_KEY is defined below
 const sessionExcluded = new Set();
-const REC_CACHE_KEY      = 'braintrust_rec_cache_v2';
-const REC_MODEL_KEY      = 'braintrust_rec_model';
-const REC_ENABLED_KEY    = 'braintrust_rec_enabled';
-const STARTING_BAL_KEY   = 'braintrust_starting_balance';
+const REC_CACHE_KEY      = 'thecollection_rec_cache_v2';
+const REC_MODEL_KEY      = 'thecollection_rec_model';
+const REC_ENABLED_KEY    = 'thecollection_rec_enabled';
+const STARTING_BAL_KEY   = 'thecollection_starting_balance';
 
-function isRecEnabled() { return localStorage.getItem(REC_ENABLED_KEY) !== '0'; }
+function isRecEnabled() { return localStorage.getItem(REC_ENABLED_KEY) === '1'; }
 function setRecEnabled(v) { localStorage.setItem(REC_ENABLED_KEY, v ? '1' : '0'); }
 
 function getRecModel() {
@@ -735,7 +735,7 @@ function getRecModel() {
 function setRecModel(model) {
   localStorage.setItem(REC_MODEL_KEY, model);
 }
-const SHOWN_RECS_KEY  = 'braintrust_shown_recs_v1';
+const SHOWN_RECS_KEY  = 'thecollection_shown_recs_v1';
 const MAX_SHOWN_RECS  = 20;
 
 function loadShownRecs() {
@@ -1263,14 +1263,14 @@ function renderRecommendation() {
 }
 
 // Persistence
-const STORAGE_KEY    = 'braintrust_movies';
-const BANNED_KEY     = 'braintrust_banned';
-const WATCHLIST_KEY  = 'braintrust_watchlist';
-const MAYBE_KEY      = 'braintrust_maybe';
-const MEH_KEY        = 'braintrust_meh';
-const SNAPSHOTS_KEY  = 'braintrust_snapshots';
-const STANDARDS_KEY  = 'braintrust_standards';
-const TOTAL_COST_KEY = 'braintrust_total_cost';
+const STORAGE_KEY    = 'thecollection_movies';
+const BANNED_KEY     = 'thecollection_banned';
+const WATCHLIST_KEY  = 'thecollection_watchlist';
+const MAYBE_KEY      = 'thecollection_maybe';
+const MEH_KEY        = 'thecollection_meh';
+const SNAPSHOTS_KEY  = 'thecollection_snapshots';
+const STANDARDS_KEY  = 'thecollection_standards';
+const TOTAL_COST_KEY = 'thecollection_total_cost';
 totalCost = parseFloat(localStorage.getItem(TOTAL_COST_KEY) || '0') || 0;
 const MAX_SNAPSHOTS  = 20;
 const MAX_STANDARDS  = 12;
@@ -1393,7 +1393,7 @@ let sortableInstance;
 let sortableView = null;
 let currentSaveOrder = null;
 
-const SORT_KEY = 'braintrust_sort';
+const SORT_KEY = 'thecollection_sort';
 let _sortModesCache = null;
 function loadSortModes() {
   if (!_sortModesCache) {
@@ -2033,7 +2033,7 @@ setInterval(() => saveSnapshot('Auto-save'), 10 * 60 * 1000);
 updateSortable('collection');
 
 // Controls
-const GRAIN_KEY = 'braintrust_grain';
+const GRAIN_KEY = 'thecollection_grain';
 function loadGrainSettings() {
   try { return JSON.parse(localStorage.getItem(GRAIN_KEY)) || {}; } catch { return {}; }
 }

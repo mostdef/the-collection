@@ -1,12 +1,12 @@
-const CARD_RATINGS_KEY   = 'braintrust_card_ratings';
-const STORAGE_KEY        = 'braintrust_movies';
-const WATCHLIST_KEY      = 'braintrust_watchlist';
-const MAYBE_KEY          = 'braintrust_maybe';
-const MEH_KEY            = 'braintrust_meh';
-const BANNED_KEY         = 'braintrust_banned';
-const STANDARDS_KEY      = 'braintrust_standards';
-const TOTAL_COST_KEY     = 'braintrust_total_cost';
-const STARTING_BAL_KEY   = 'braintrust_starting_balance';
+const CARD_RATINGS_KEY   = 'thecollection_card_ratings';
+const STORAGE_KEY        = 'thecollection_movies';
+const WATCHLIST_KEY      = 'thecollection_watchlist';
+const MAYBE_KEY          = 'thecollection_maybe';
+const MEH_KEY            = 'thecollection_meh';
+const BANNED_KEY         = 'thecollection_banned';
+const STANDARDS_KEY      = 'thecollection_standards';
+const TOTAL_COST_KEY     = 'thecollection_total_cost';
+const STARTING_BAL_KEY   = 'thecollection_starting_balance';
 
 function applySnapshot(snap) {
   localStorage.setItem(STORAGE_KEY,   JSON.stringify(snap.movies    || []));
