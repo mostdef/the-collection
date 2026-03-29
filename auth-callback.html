@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Signing in…</title>
+  <style>
+    body { background: #f5f4f1; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: Inter, system-ui, sans-serif; color: #555; }
+  </style>
+</head>
+<body>
+  <p>Signing you in…</p>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/auth.js"></script>
+  <script>
+    (async function () {
+      await initAuth();
+      // Supabase processes the token from the URL hash automatically
+      const session = await getSession();
+      window.location.href = session ? '/movies.html' : '/login.html';
+    })();
+  </script>
+</body>
+</html>

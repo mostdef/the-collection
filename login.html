@@ -5,147 +5,164 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>The Collection — Sign In</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #1a1a1a;
-      color: #e0e0e0;
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: #f5f4f1;
+      color: #1a1a1a;
+      font-family: 'Inter', system-ui, sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
-    .card {
-      background: #242424;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 48px 40px;
+    .wrap {
       width: 100%;
-      max-width: 380px;
+      max-width: 360px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
     }
 
-    .title {
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: -0.3px;
-      color: #fff;
-      margin-bottom: 8px;
+    .brand {
+      text-align: center;
     }
 
-    .subtitle {
-      font-size: 14px;
-      color: #888;
-      margin-bottom: 32px;
+    .brand-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-weight: 800;
+      font-size: 32px;
+      color: #111;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
     }
 
-    label {
-      display: block;
+    .brand-sub {
+      margin-top: 8px;
       font-size: 13px;
-      color: #aaa;
-      margin-bottom: 8px;
+      color: #888;
+      letter-spacing: 0.02em;
+    }
+
+    .card {
+      width: 100%;
+      background: #fff;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 16px;
+      padding: 32px 28px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+
+    .card-label {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 10px;
     }
 
     input[type="email"] {
       width: 100%;
-      background: #1a1a1a;
-      border: 1px solid #444;
+      background: #f7f6f3;
+      border: 1px solid rgba(0,0,0,0.1);
       border-radius: 8px;
-      padding: 10px 14px;
+      padding: 11px 14px;
       font-size: 14px;
-      color: #e0e0e0;
+      color: #1a1a1a;
       outline: none;
       transition: border-color 0.15s;
       font-family: inherit;
     }
 
     input[type="email"]:focus {
-      border-color: #666;
+      border-color: rgba(0,0,0,0.25);
+      background: #fff;
     }
 
     button {
       width: 100%;
-      margin-top: 16px;
-      background: #fff;
-      color: #1a1a1a;
+      margin-top: 12px;
+      background: #1a1a1a;
+      color: #fff;
       border: none;
       border-radius: 8px;
-      padding: 11px 14px;
+      padding: 12px 14px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       font-family: inherit;
-      transition: background 0.15s, opacity 0.15s;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
     }
 
-    button:hover:not(:disabled) {
-      background: #e8e8e8;
-    }
-
-    button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
+    button:hover:not(:disabled) { background: #333; }
+    button:active:not(:disabled) { transform: scale(0.98); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
 
     .status {
-      margin-top: 20px;
+      margin-top: 16px;
       font-size: 13px;
-      min-height: 20px;
+      min-height: 18px;
       text-align: center;
+      line-height: 1.5;
     }
 
-    .status.success { color: #6ee7b7; }
-    .status.error   { color: #f87171; }
+    .status.success { color: #2d7a4f; }
+    .status.error   { color: #b94040; }
+
+    .footer {
+      font-size: 12px;
+      color: #aaa;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
 
-  <!-- Supabase config — fill in real values before deploying -->
-  <script>
-    window.__SUPABASE_URL__ = '';
-    window.__SUPABASE_ANON_KEY__ = '';
-  </script>
+  <div class="wrap">
+    <div class="brand">
+      <div class="brand-title">The Collection</div>
+      <div class="brand-sub">Your personal film archive</div>
+    </div>
 
-  <!-- Supabase JS v2 from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <!-- Auth module -->
-  <script src="/auth.js"></script>
+    <div class="card">
+      <div class="card-label">Email address</div>
+      <form id="login-form">
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="you@example.com"
+          required
+          autocomplete="email"
+          autofocus
+        />
+        <button type="submit" id="submit-btn">Send magic link</button>
+      </form>
+      <div class="status" id="status"></div>
+    </div>
 
-  <div class="card">
-    <div class="title">The Collection</div>
-    <div class="subtitle">Enter your email to sign in</div>
-
-    <form id="login-form">
-      <label for="email">Email address</label>
-      <input
-        type="email"
-        id="email"
-        name="email"
-        placeholder="you@example.com"
-        required
-        autocomplete="email"
-      />
-      <button type="submit" id="submit-btn">Send magic link</button>
-    </form>
-
-    <div class="status" id="status"></div>
+    <div class="footer">No password needed — we'll email you a sign-in link.</div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="/auth.js"></script>
   <script>
     (async function () {
+      await initAuth();
+
       // If already authenticated, go straight to the app
       const session = await getSession();
-      if (session) {
-        window.location.href = '/movies.html';
-        return;
-      }
+      if (session) { window.location.href = '/movies.html'; return; }
 
-      const form = document.getElementById('login-form');
+      const form      = document.getElementById('login-form');
       const emailInput = document.getElementById('email');
-      const submitBtn = document.getElementById('submit-btn');
-      const statusEl = document.getElementById('status');
+      const submitBtn  = document.getElementById('submit-btn');
+      const statusEl   = document.getElementById('status');
 
       form.addEventListener('submit', async function (e) {
         e.preventDefault();
@@ -159,13 +176,12 @@
 
         try {
           await signInWithMagicLink(email);
-          statusEl.textContent = 'Check your email for the magic link.';
+          statusEl.textContent = 'Check your email — the link expires in 1 hour.';
           statusEl.className = 'status success';
           form.reset();
         } catch (err) {
           statusEl.textContent = err.message || 'Something went wrong. Please try again.';
           statusEl.className = 'status error';
-        } finally {
           submitBtn.disabled = false;
           submitBtn.textContent = 'Send magic link';
         }

@@ -1,6 +1,7 @@
 {
   "devCommand": "browser-sync start --server --port $PORT --files '*.html, *.css, *.js' --no-open --no-notify",
   "routes": [
-    { "src": "/", "dest": "/movies.html" }
+    { "src": "/", "dest": "/movies.html" },
+    { "src": "/auth/callback", "dest": "/auth-callback.html" }
   ]
 }
