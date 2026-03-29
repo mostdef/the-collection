@@ -16,6 +16,31 @@ function applySnapshot(snap) {
   localStorage.setItem(BANNED_KEY,    JSON.stringify(snap.banned    || []));
   if (snap.standards) localStorage.setItem(STANDARDS_KEY, JSON.stringify(snap.standards));
   if (snap.totalCost != null) localStorage.setItem(TOTAL_COST_KEY, snap.totalCost.toFixed(6));
+  // Push to Supabase immediately so hydration on next load doesn't overwrite
+  supabasePushFromSettings();
+}
+
+async function supabasePushFromSettings() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return;
+    const payload = {
+      movies:     JSON.parse(localStorage.getItem(STORAGE_KEY)   || '[]'),
+      watchlist:  JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]'),
+      maybe:      JSON.parse(localStorage.getItem(MAYBE_KEY)     || '[]'),
+      meh:        JSON.parse(localStorage.getItem(MEH_KEY)       || '[]'),
+      banned:     JSON.parse(localStorage.getItem(BANNED_KEY)    || '[]'),
+      standards:  JSON.parse(localStorage.getItem(STANDARDS_KEY) || '[]'),
+      total_cost: parseFloat(localStorage.getItem(TOTAL_COST_KEY) || '0') || 0,
+    };
+    await fetch('/api/user-data', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+      body: JSON.stringify(payload),
+    });
+  } catch(e) {}
 }
 
 function formatDate(ts) {
