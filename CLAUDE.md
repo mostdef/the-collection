@@ -1,7 +1,7 @@
 # The Collection — Project Guide
 
 ## Overview
-Personal movie collection and recommendation app (formerly "Braintrust"). Vanilla JS/HTML/CSS, no build system. Deployed on Vercel with serverless API functions.
+Personal movie collection and recommendation app. Vanilla JS/HTML/CSS, no build system. Deployed on Vercel with serverless API functions.
 
 **Dev:** `vercel dev` (runs browser-sync + API functions locally)
 
