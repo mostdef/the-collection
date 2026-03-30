@@ -22,7 +22,7 @@ module.exports = async function handler(req, res) {
         .insert({ user_id: user.id, ts: snap.ts || Date.now(), label: snap.label, data: snap });
       if (error) {
         console.error('snapshot insert error:', error);
-        return res.status(500).json({ error: 'db_error' });
+        return res.status(500).json({ error: 'db_error', detail: error.message, code: error.code });
       }
       return res.json({ ok: true });
     }
@@ -36,7 +36,7 @@ module.exports = async function handler(req, res) {
         .limit(50);
       if (error) {
         console.error('snapshot select error:', error);
-        return res.status(500).json({ error: 'db_error' });
+        return res.status(500).json({ error: 'db_error', detail: error.message, code: error.code });
       }
       return res.json((data || []).map(row => row.data));
     }

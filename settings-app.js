@@ -124,7 +124,10 @@ function readFile(file) {
 async function loadServerSnapshots() {
   const list = document.getElementById('snapshot-list');
   try {
-    const res = await fetch('/api/snapshot');
+    const token = typeof getAuthToken === 'function' ? await getAuthToken() : null;
+    const res = await fetch('/api/snapshot', {
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+    });
     const snaps = await res.json();
     list.innerHTML = '';
     if (!snaps.length) {
@@ -228,9 +231,13 @@ document.getElementById('save-snapshot-btn').addEventListener('click', async fun
     totalCost: parseFloat(localStorage.getItem(TOTAL_COST_KEY) || '0'),
   };
   try {
+    const token = typeof getAuthToken === 'function' ? await getAuthToken() : null;
     const res = await fetch('/api/snapshot', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(snap),
     });
     if (res.ok) {
