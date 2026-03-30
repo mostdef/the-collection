@@ -61,17 +61,35 @@ const Fixtures = {
   },
 
   // Call before first render — resolves real TMDB poster URLs via the local API.
+  // Resolved URLs are cached in localStorage so subsequent loads are instant.
   // Falls back silently to the SVG placeholders if the API is unavailable.
+  POSTER_CACHE_KEY: 'thecollection_sandbox_posters',
+
   init: async function () {
+    // L2: restore from localStorage cache
+    let cache = {};
+    try { cache = JSON.parse(localStorage.getItem(Fixtures.POSTER_CACHE_KEY) || '{}'); } catch {}
+
     const entries = Object.entries(Fixtures.movies);
-    await Promise.all(entries.map(async ([, movie]) => {
-      try {
-        const res = await fetch(`/api/movie-details?title=${encodeURIComponent(movie.title)}&year=${encodeURIComponent(movie.year)}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.poster) movie.poster = data.poster;
-      } catch { /* API unavailable — keep SVG fallback */ }
-    }));
+    const needsFetch = entries.filter(([, movie]) => !cache[movie.title]);
+
+    if (needsFetch.length > 0) {
+      await Promise.all(needsFetch.map(async ([, movie]) => {
+        try {
+          const res = await fetch(`/api/movie-details?title=${encodeURIComponent(movie.title)}&year=${encodeURIComponent(movie.year)}`);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.poster) cache[movie.title] = data.poster;
+        } catch { /* API unavailable — keep SVG fallback */ }
+      }));
+      try { localStorage.setItem(Fixtures.POSTER_CACHE_KEY, JSON.stringify(cache)); } catch {}
+    }
+
+    // Apply cached/fetched posters
+    for (const [, movie] of entries) {
+      if (cache[movie.title]) movie.poster = cache[movie.title];
+    }
+
     // Sync nwwStates.playing poster from the resolved movie fixture
     const playing = Fixtures.nwwStates.playing;
     if (playing) {

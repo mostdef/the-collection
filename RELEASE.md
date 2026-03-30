@@ -20,6 +20,9 @@
 - Session-in-progress indicator moved to title level in movie modal
 - Tilt/hover effect applied consistently across all grid views (Watchlist, Wildcard, Meh, Banned)
 - Director backfill for manually-added movies — resolved on next modal open
+- Live card border upgraded: comet-shaped rotating gradient with layered bloom glow — fixed a long-standing CSS specificity bug that was silently suppressing the gradient
+- Sandbox poster images cached in localStorage — loads instantly after first visit instead of fetching on every open
+- Sandbox chrome updated to light theme to match the main app
 
 ---
 

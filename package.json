@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
-    "dev": "browser-sync start --server --files '*.html, *.css, *.js'"
+    "dev": "browser-sync start --server --files '*.html, *.css, *.js, sandbox/*.html, sandbox/*.js, components/*.js'"
   },
   "keywords": [],
   "author": "",

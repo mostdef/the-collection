@@ -12,8 +12,8 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0e0e0e;
-      color: #fff;
+      background: #fff;
+      color: #111;
       min-height: 100vh;
       padding: 48px 32px 80px;
       font-family: 'Inter', sans-serif;
@@ -35,7 +35,7 @@
       margin-bottom: 24px;
       transition: color 0.15s ease;
     }
-    .sandbox-back:hover { color: #888; }
+    .sandbox-back:hover { color: #555; }
     .sandbox-back svg { width: 12px; height: 12px; }
 
     .sandbox-title {
@@ -43,14 +43,14 @@
       font-size: 36px;
       font-weight: 700;
       font-style: italic;
-      color: #fff;
+      color: #111;
       letter-spacing: -0.01em;
       line-height: 1.1;
     }
 
     .sandbox-subtitle {
       font-size: 13px;
-      color: #555;
+      color: #999;
       margin-top: 8px;
     }
 
@@ -66,7 +66,7 @@
       font-weight: 500;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: #555;
+      color: #aaa;
       margin-bottom: 24px;
     }
 
@@ -78,8 +78,8 @@
       gap: 20px 28px;
       align-items: flex-end;
       padding: 24px;
-      background: #141414;
-      border: 1px solid #1e1e1e;
+      background: #fafafa;
+      border: 1px solid #e8e8e8;
       border-radius: 12px;
       margin-bottom: 32px;
     }
@@ -95,14 +95,14 @@
       font-weight: 500;
       letter-spacing: 0.07em;
       text-transform: uppercase;
-      color: #555;
+      color: #888;
     }
 
     .control-select,
     .control-range {
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      color: #ccc;
+      background: #fff;
+      border: 1px solid #ddd;
+      color: #111;
       border-radius: 6px;
       font-family: 'Inter', sans-serif;
       font-size: 13px;
@@ -114,7 +114,7 @@
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23555' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23aaa' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 10px center;
       padding-right: 28px;
@@ -123,13 +123,13 @@
     .control-select:focus,
     .control-range:focus {
       outline: none;
-      border-color: rgba(255,255,255,0.15);
+      border-color: #aaa;
     }
 
     .control-range {
       width: 160px;
       padding: 4px 0;
-      accent-color: rgba(255,215,0,0.7);
+      accent-color: #111;
     }
 
     .control-check-row {
@@ -142,13 +142,13 @@
     .control-check-row input[type="checkbox"] {
       width: 15px;
       height: 15px;
-      accent-color: rgba(255,215,0,0.7);
+      accent-color: #111;
       cursor: pointer;
     }
 
     .control-check-row label {
       font-size: 13px;
-      color: #888;
+      color: #444;
       cursor: pointer;
     }
 
@@ -162,12 +162,12 @@
       align-items: center;
       gap: 6px;
       font-size: 13px;
-      color: #888;
+      color: #444;
       cursor: pointer;
     }
 
     .control-radio-row input[type="radio"] {
-      accent-color: rgba(255,215,0,0.7);
+      accent-color: #111;
       cursor: pointer;
     }
 
@@ -175,16 +175,13 @@
 
     .preview-stage {
       position: relative;
-      background: #0a0a0a;
-      border: 1px solid #1a1a1a;
+      background: #fff;
+      border: 1px solid #e8e8e8;
       border-radius: 12px;
-      min-height: 320px;
+      width: 860px;
+      height: 480px;
       overflow: hidden;
-    }
-
-    /* Wide enough to hold companion */
-    .preview-stage.wide {
-      min-width: 760px;
+      cursor: default;
     }
 
     .preview-widget {
@@ -213,14 +210,14 @@
       font-weight: 500;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      color: #555;
+      color: #aaa;
     }
 
     /* Each permutation sits in a relative container so .nww positions within it */
     .gallery-stage {
       position: relative;
-      background: #0a0a0a;
-      border: 1px solid #1a1a1a;
+      background: #111;
+      border: 1px solid #e8e8e8;
       border-radius: 10px;
       /* Enough padding around the widget */
       padding: 20px;
@@ -413,7 +410,7 @@
       } else if (state === 'playing-companion') {
         nwwEl.classList.add('nww--expanded', 'nww--companion-open');
         if (paused) nwwEl.classList.add('nww--paused');
-        stage.style.minWidth = '780px';
+        stage.style.minWidth = '';
 
         const panelContainer = document.createElement('div');
         panelContainer.style.display = 'contents';
@@ -455,13 +452,31 @@
         });
       }
 
-      // Reset stage min-width unless companion
-      if (state !== 'playing-companion') {
-        stage.style.minWidth = '';
-      }
+      // stage is fixed-size — no width adjustment needed
     }
 
     // ── Wire controls ─────────────────────────────────────────────────────────
+
+    // Stage click interactions — mimic real app behaviour
+    document.getElementById('preview-stage').addEventListener('click', (e) => {
+      const stateCtrl = document.getElementById('ctrl-state');
+      const current = stateCtrl.value;
+
+      // Clicking blank stage area → collapse to pill
+      if (e.target === e.currentTarget) {
+        if (current === 'playing' || current === 'playing-companion' || current === 'deciding') {
+          stateCtrl.value = 'pill';
+          renderPreview();
+        }
+        return;
+      }
+
+      // Clicking the pill → expand to playing
+      if (e.target.closest('.nww-pill') && current === 'pill') {
+        stateCtrl.value = 'playing';
+        renderPreview();
+      }
+    });
 
     ['ctrl-state','ctrl-movie'].forEach(id => {
       document.getElementById(id).addEventListener('change', renderPreview);

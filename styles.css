@@ -767,28 +767,30 @@ main {
   to { --card-angle: 1turn; }
 }
 
-/* Live card: travelling golden border + drop shadow — pure CSS */
-.movie-card--live {
+/* Live card: rotating glow border — comet head + bloom drop-shadow */
+.movie-card.movie-card--live {
   border: 3px solid transparent;
   border-radius: 6px;
   background:
     linear-gradient(#fff, #fff) padding-box,
     conic-gradient(
       from var(--card-angle),
-      transparent 284deg,
-      #7a5200 288deg,
-      #c8860a 296deg,
-      #ffd700 312deg,
-      #e8a020 326deg,
-      #7a5200 336deg,
-      transparent 340deg
+      rgba(200, 134, 10, 0) 0deg,
+      rgba(200, 134, 10, 0) 315deg,
+      #c8860a 330deg,
+      #ffd700 345deg,
+      #fff5b0 355deg,
+      #ffd700 360deg
     ) border-box;
-  animation: card-border-rotate 7s linear infinite;
-  filter: drop-shadow(0 0 8px rgba(200,134,10,0.55));
+  animation: card-border-rotate 6s linear infinite;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 215, 0, 0.95))
+    drop-shadow(0 0 8px rgba(220, 160, 20, 0.75))
+    drop-shadow(0 0 18px rgba(200, 120, 10, 0.45));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .movie-card--live { animation: none; }
+  .movie-card.movie-card--live { animation: none; }
 }
 
 .card-remove-btn {
