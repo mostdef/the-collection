@@ -2707,43 +2707,66 @@ nww.companionOpenBtn.addEventListener('click', () => {
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  if (reducedMotion) {
+    nwwSetCompanionOpen(true);
+    nwwRenderCompanion(loadNowWatching());
+    if (!data.companion.facts_fetched && !data.companion.facts_loading) nwwFetchFacts(loadNowWatching());
+    return;
+  }
+
   // Button exit
-  if (!reducedMotion) {
-    const btn = nww.companionOpenBtn;
-    btn.style.transition = 'opacity 0.12s ease-in, transform 0.12s cubic-bezier(0.23, 1, 0.32, 1)';
-    btn.style.opacity = '0';
-    btn.style.transform = 'scale(0.94) translateY(2px)';
-  }
+  const btn = nww.companionOpenBtn;
+  btn.style.transition = 'opacity 0.12s ease-in, transform 0.12s cubic-bezier(0.23, 1, 0.32, 1)';
+  btn.style.opacity = '0';
+  btn.style.transform = 'scale(0.94) translateY(2px)';
 
-  nwwSetCompanionOpen(true);
-  nwwRenderCompanion(loadNowWatching());
-  if (!data.companion.facts_fetched && !data.companion.facts_loading) {
-    nwwFetchFacts(loadNowWatching());
-  }
+  // PHASE 1 — panel stretches to 620px; companion not yet shown
+  const startH = nww.panel.offsetHeight;
+  nww.panel.style.height = startH + 'px';
+  void nww.panel.offsetHeight;
+  nww.panel.style.transition = 'height 0.32s cubic-bezier(0.23, 1, 0.32, 1)';
+  nww.panel.style.height = '620px';
 
-  if (reducedMotion) return;
-
-  // Container width 320 → 700 animated
-  nww.el.style.width = '320px';
-  void nww.el.offsetHeight;
-  nww.el.style.transition = 'width 0.32s cubic-bezier(0.23, 1, 0.32, 1)';
-  nww.el.style.width = '700px';
+  // PHASE 2 — class added here so nww-companion-in fires at exactly the right moment
   setTimeout(() => {
-    nww.el.style.transition = '';
-    nww.el.style.width = '';
-    const btn = nww.companionOpenBtn;
-    btn.style.transition = '';
-    btn.style.opacity = '';
-    btn.style.transform = '';
-  }, 340);
+    nww.panel.style.transition = '';
+
+    // Lock width before class change prevents 700px flash
+    nww.el.style.width = '320px';
+
+    nwwSetCompanionOpen(true);
+    nwwRenderCompanion(loadNowWatching());
+    if (!data.companion.facts_fetched && !data.companion.facts_loading) nwwFetchFacts(loadNowWatching());
+
+    // Panel push nudge
+    nww.panel.style.setProperty('animation', 'nww-panel-companion-push 0.38s cubic-bezier(0.23, 1, 0.32, 1) both', 'important');
+    nww.panel.addEventListener('animationend', () => {
+      nww.panel.style.removeProperty('animation');
+      nww.panel.style.height = '';  // release: align-items:stretch keeps it at 620px
+    }, { once: true });
+
+    // Container expands
+    void nww.el.offsetHeight;
+    nww.el.style.transition = 'width 0.32s cubic-bezier(0.23, 1, 0.32, 1)';
+    nww.el.style.width = '700px';
+    setTimeout(() => {
+      nww.el.style.transition = '';
+      nww.el.style.width = '';
+      btn.style.transition = '';
+      btn.style.opacity = '';
+      btn.style.transform = '';
+    }, 340);
+  }, 350);
 });
 
 nww.companionClose.addEventListener('click', () => {
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reducedMotion) { nwwSetCompanionOpen(false); return; }
 
-  // Companion panel slides out right while container shrinks
+  // Companion exits left; playing panel bounces right as it's released
   nww.companionPanel.style.animation = 'nww-companion-out 0.22s cubic-bezier(0.23, 1, 0.32, 1) both';
+  nww.panel.style.setProperty('animation', 'nww-panel-companion-release 0.28s cubic-bezier(0.23, 1, 0.32, 1) both', 'important');
+  nww.panel.addEventListener('animationend', () => nww.panel.style.removeProperty('animation'), { once: true });
   nww.el.style.transition = 'width 0.28s cubic-bezier(0.23, 1, 0.32, 1)';
   nww.el.style.width = '320px';
   setTimeout(() => {

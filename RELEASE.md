@@ -4,6 +4,24 @@
 
 ## Latest — 2026-03-31
 
+### Now Watching — Companion Open Animation
+- Playing panel now expands vertically to 620px first, then the companion slides in from the left — two-phase sequence eliminates any abrupt width jump
+- Companion entrance: slides in from left with scale(0.94) → scale(1) and fade, duration 380ms
+- Companion exit: contracts back left with matching scale + fade, duration 220ms (exits faster than it enters)
+- Playing panel nudges left as companion pushes in, then springs back — reinforces the spatial relationship
+- Open Companion button fades and scales down before companion appears; cleaned up after Phase 2 completes
+- Width container expands 320px → 700px in Phase 2 only, preventing any flash at class-add time
+- Companion close handler unwinds in reverse: companion slides out, container contracts, panel springs right
+- All animations respect `prefers-reduced-motion`
+
+### Now Watching — Companion Delight
+- Chat send button brightens to full gold when there is text in the input, dims when empty
+- Chat input focus shows a warm gold glow ring
+- Typing indicator dots are amber instead of white
+- Incoming assistant responses flash a brief golden border shimmer before settling
+- Fact timestamps show a small `◼` film-frame mark before the percentage
+- Spoiler toggle pops with a subtle scale on activation
+
 ### Modal — Loading Skeleton
 - Skeleton now precisely matches the real modal layout: correct heights for rating badges, watch button, tagline, overview lines, cast photos, and section labels
 - Cast character names now show two stacked bars to account for wrapping (e.g. long character names no longer cause a height jump on load)
