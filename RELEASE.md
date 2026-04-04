@@ -2,6 +2,18 @@
 
 ---
 
+## Latest — 2026-04-05
+
+### Where to Watch
+- New tab in the film modal showing where a film can be streamed, rented, or bought in your region
+- Logos link directly to the film on each platform — not just the homepage
+- Country selector covers 20 regions; defaults to your browser locale and remembers your choice
+- Falls back to US availability when your region has no data
+- Provider data is cached for 24 hours so repeat visits are instant
+- Tab and skeleton loader are available immediately on modal open, before data arrives
+
+---
+
 ## Latest — 2026-04-04
 
 ### Now Watching — Pill Animations

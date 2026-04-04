@@ -91,6 +91,8 @@ All keys prefixed `thecollection_`:
 | `thecollection_sort_*` | Per-view sort modes |
 | `thecollection_rec_cache` | Cached last recommendation |
 | `thecollection_taste_signals` | Watch session outcome signals (array, newest first, max 50) |
+| `thecollection_wtw_country` | User's selected country code for "Where to watch" (ISO 3166-1 alpha-2, e.g. `PL`) |
+| `thecollection_providers_<tmdb_id>` | Cached watch provider data per film `{ data, ts }` — 24h TTL |
 | `thecollection_anticipated` | Anticipated list — `[{ title, year, director, poster, release_date, addedAt }]` sorted chronologically on render |
 | `thecollection_tex_<title>` | Persisted fold texture pair `{hl, sh}` as JPEG data URIs — generated once per movie, never regenerated unless cleared |
 

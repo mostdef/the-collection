@@ -339,6 +339,157 @@ const ModalComponent = (() => {
     }
   }
 
+  // ── Tab: Where to watch ─────────────────────────────────────────────────────
+
+  const WTW_COUNTRIES = [
+    { code: 'US', flag: '🇺🇸', label: 'United States' },
+    { code: 'GB', flag: '🇬🇧', label: 'United Kingdom' },
+    { code: 'DE', flag: '🇩🇪', label: 'Germany' },
+    { code: 'FR', flag: '🇫🇷', label: 'France' },
+    { code: 'PL', flag: '🇵🇱', label: 'Poland' },
+    { code: 'IT', flag: '🇮🇹', label: 'Italy' },
+    { code: 'ES', flag: '🇪🇸', label: 'Spain' },
+    { code: 'AU', flag: '🇦🇺', label: 'Australia' },
+    { code: 'CA', flag: '🇨🇦', label: 'Canada' },
+    { code: 'NL', flag: '🇳🇱', label: 'Netherlands' },
+    { code: 'SE', flag: '🇸🇪', label: 'Sweden' },
+    { code: 'NO', flag: '🇳🇴', label: 'Norway' },
+    { code: 'DK', flag: '🇩🇰', label: 'Denmark' },
+    { code: 'FI', flag: '🇫🇮', label: 'Finland' },
+    { code: 'BR', flag: '🇧🇷', label: 'Brazil' },
+    { code: 'JP', flag: '🇯🇵', label: 'Japan' },
+    { code: 'KR', flag: '🇰🇷', label: 'South Korea' },
+    { code: 'IN', flag: '🇮🇳', label: 'India' },
+    { code: 'MX', flag: '🇲🇽', label: 'Mexico' },
+    { code: 'AR', flag: '🇦🇷', label: 'Argentina' },
+  ];
+
+  function renderWatchProvidersContent(container, tmdbId, options) {
+    const { getCountry, onCountryChange, onFetchProviders, wtwPrefetch } = options;
+    const country = getCountry ? getCountry() : 'US';
+
+    container.innerHTML = '';
+
+    // ── Header row: Stream label (left) + country selector (right) ──
+    const headerRow = document.createElement('div');
+    headerRow.className = 'mm-wtw-header-row';
+
+    const streamLabel = document.createElement('div');
+    streamLabel.className = 'mm-wtw-section-label mm-wtw-stream-label';
+    streamLabel.textContent = 'Stream';
+
+    const countryRow = document.createElement('div');
+    countryRow.className = 'mm-wtw-country-row';
+    const countryLabel = document.createElement('span');
+    countryLabel.textContent = 'Showing availability in';
+    const countrySelect = document.createElement('select');
+    countrySelect.className = 'mm-wtw-country-select';
+    WTW_COUNTRIES.forEach(({ code, flag, label }) => {
+      const opt = document.createElement('option');
+      opt.value = code;
+      opt.textContent = `${flag} ${label}`;
+      if (code === country) opt.selected = true;
+      countrySelect.appendChild(opt);
+    });
+    countrySelect.addEventListener('change', () => {
+      if (typeof onCountryChange === 'function') onCountryChange(countrySelect.value);
+      renderWatchProvidersContent(container, tmdbId, { ...options, wtwPrefetch: null });
+    });
+    countryRow.append(countryLabel, countrySelect);
+    headerRow.append(streamLabel, countryRow);
+    container.appendChild(headerRow);
+
+    // ── Provider data ──
+    if (!onFetchProviders || !tmdbId) {
+      const empty = document.createElement('div');
+      empty.className = 'mm-wtw-empty';
+      empty.textContent = 'Streaming data unavailable.';
+      container.appendChild(empty);
+      return;
+    }
+
+    // Use the pre-fetched promise if available, otherwise fetch now
+    const fetchPromise = wtwPrefetch || onFetchProviders(tmdbId, country);
+
+    const loading = document.createElement('div');
+    loading.className = 'mm-wtw-loading';
+    loading.textContent = 'Loading…';
+    container.appendChild(loading);
+
+    fetchPromise.then(data => {
+      loading.remove();
+
+      if (!data) {
+        const err = document.createElement('div');
+        err.className = 'mm-wtw-empty';
+        err.textContent = 'Could not load streaming data.';
+        container.appendChild(err);
+        return;
+      }
+
+      const { flatrate = [], rent = [], buy = [], fallback } = data;
+
+      if (fallback) {
+        const notice = document.createElement('p');
+        notice.className = 'mm-wtw-fallback-notice';
+        notice.textContent = 'No data for your region — showing US availability.';
+        container.appendChild(notice);
+      }
+
+      const buildLogoGrid = (providers) => {
+        const grid = document.createElement('div');
+        grid.className = 'mm-wtw-logos';
+        providers.forEach(({ name, logo, homepage }) => {
+          const link = document.createElement('a');
+          link.className = 'mm-wtw-provider';
+          link.href = homepage || '#';
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.title = name;
+          const img = document.createElement('img');
+          img.src = logo;
+          img.alt = name;
+          img.width = 80;
+          img.height = 80;
+          link.appendChild(img);
+          grid.appendChild(link);
+        });
+        return grid;
+      };
+
+      if (flatrate.length) {
+        const section = document.createElement('div');
+        section.className = 'mm-wtw-section';
+        section.append(buildLogoGrid(flatrate));
+        container.appendChild(section);
+      } else {
+        // Hide the stream label in the header if there's nothing to stream
+        const sl = container.querySelector('.mm-wtw-stream-label');
+        if (sl) sl.hidden = true;
+      }
+
+      // Rent + Buy merged into one section, deduped by name
+      const rentBuy = [...rent];
+      buy.forEach(b => { if (!rentBuy.find(r => r.name === b.name)) rentBuy.push(b); });
+      if (rentBuy.length) {
+        const section = document.createElement('div');
+        section.className = 'mm-wtw-section';
+        const label = document.createElement('div');
+        label.className = 'mm-wtw-section-label';
+        label.textContent = 'Rent & Buy';
+        section.append(label, buildLogoGrid(rentBuy));
+        container.appendChild(section);
+      }
+
+      if (!flatrate.length && !hasRentBuy) {
+        const empty = document.createElement('div');
+        empty.className = 'mm-wtw-empty';
+        empty.textContent = 'Not available to stream in this region.';
+        container.appendChild(empty);
+      }
+    });
+  }
+
   // ── Main render ─────────────────────────────────────────────────────────────
 
   /**
@@ -355,6 +506,9 @@ const ModalComponent = (() => {
    * @param {Function}    [options.getPastSessions]             - () => array of past signals
    * @param {Function}    [options.onSendChat]                  - async (message, chatHistory) => { reply } | null
    * @param {Function}    [options.onGenerateFact]              - async (movie) => { facts: [{pct,text}] } | null
+   * @param {Function}    [options.getCountry]                  - () => ISO country code string
+   * @param {Function}    [options.onCountryChange]             - (code) => void
+   * @param {Function}    [options.onFetchProviders]            - async (tmdbId, country) => provider data | null
    */
   function renderModal(container, movie, data, options = {}) {
     const {
@@ -364,12 +518,15 @@ const ModalComponent = (() => {
       getPastSessions = () => [],
       onSendChat = null,
       onGenerateFact = null,
+      getCountry = () => 'US',
+      onCountryChange = null,
+      onFetchProviders = null,
     } = options;
 
     // In-memory session state — persists across tab switches for this modal's lifetime
     const mmSession = { chatHistory: [], facts: [], factsLoading: false };
 
-    const resolvedOptions = { getActiveSessions, getPastSessions, onSendChat, onGenerateFact, mmSession };
+    const resolvedOptions = { getActiveSessions, getPastSessions, onSendChat, onGenerateFact, mmSession, getCountry, onCountryChange, onFetchProviders };
 
     container.innerHTML = '';
 
@@ -462,7 +619,11 @@ const ModalComponent = (() => {
     sessionTab.className = 'mm-tab';
     sessionTab.innerHTML = hasSession ? 'Session <span class="mm-tab-dot"></span>' : 'Session';
 
-    tabBar.append(detailsTab, sessionTab);
+    const wtwTab = document.createElement('button');
+    wtwTab.className = 'mm-tab';
+    wtwTab.textContent = 'Where to watch';
+
+    tabBar.append(detailsTab, sessionTab, wtwTab);
     infoHeader.appendChild(tabBar);
     info.appendChild(infoHeader);
 
@@ -473,15 +634,26 @@ const ModalComponent = (() => {
 
     let detailsContentHeight = 0;
 
+    // Pre-fetch provider data immediately so the tab renders instantly on click
+    let wtwPrefetch = null;
+    if (onFetchProviders && data.tmdb_id) {
+      const country = getCountry ? getCountry() : 'US';
+      wtwPrefetch = onFetchProviders(data.tmdb_id, country);
+    }
+
     function showTab(which) {
       detailsTab.classList.toggle('mm-tab-active', which === 'details');
       sessionTab.classList.toggle('mm-tab-active', which === 'session');
-      infoHeader.classList.toggle('mm-info-header--no-shadow', which === 'details');
+      wtwTab.classList.toggle('mm-tab-active', which === 'wtw');
+      infoHeader.classList.add('mm-info-header--no-shadow');
       tabContent.innerHTML = '';
       if (which === 'details') {
         renderDetailsContent(tabContent, movie, data);
         detailsContentHeight = tabContent.scrollHeight;
         tabContent.style.minHeight = '';
+      } else if (which === 'wtw') {
+        if (detailsContentHeight > 0) tabContent.style.minHeight = detailsContentHeight + 'px';
+        renderWatchProvidersContent(tabContent, data.tmdb_id, { ...resolvedOptions, wtwPrefetch });
       } else {
         if (detailsContentHeight > 0) tabContent.style.minHeight = detailsContentHeight + 'px';
         renderSessionContent(tabContent, movie, resolvedOptions);
@@ -490,10 +662,14 @@ const ModalComponent = (() => {
 
     detailsTab.addEventListener('click', () => showTab('details'));
     sessionTab.addEventListener('click', () => showTab('session'));
+    wtwTab.addEventListener('click', () => showTab('wtw'));
 
     container.append(posterCol, info);
 
-    showTab(initialTab);
+    // Always render Details first to capture its height, then switch to the desired tab.
+    // All synchronous — no visible flash before first paint.
+    showTab('details');
+    if (initialTab !== 'details') showTab(initialTab);
   }
 
   return { renderModal, renderDetailsContent, renderSessionContent, mmNormalizeTitle, mmGetSessions, mmGetActiveSession };

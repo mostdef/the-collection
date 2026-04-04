@@ -115,6 +115,7 @@ module.exports = async function handler(req, res) {
   }));
 
   res.json({
+    tmdb_id:      tmdbId,
     overview:     details.overview || null,
     tagline:      details.tagline  || null,
     runtime:      details.runtime  || null,

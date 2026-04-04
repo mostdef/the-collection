@@ -13,6 +13,7 @@ A personal film curation tool for reflective movie watching. Not a streaming app
 - **Now Watching widget** — track a live session with a real-time timer, pause/resume, and a film companion (timed facts + chat)
 - **Companion** — spoiler-aware film notes and freeform chat during a watch session
 - **Persona** — AI-generated taste portrait that evolves with your collection
+- **Where to watch** — per-film tab showing streaming availability by country, with direct deep links to each platform
 - **Snapshots** — point-in-time backups of your full collection state
 
 ---

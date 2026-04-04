@@ -205,6 +205,28 @@ function _drainTexQueue() {
   else _texDraining = false;
 }
 
+function getWTWCountry() {
+  return localStorage.getItem(WTW_COUNTRY_KEY)
+    || navigator.language?.split('-')[1]?.toUpperCase()
+    || 'US';
+}
+
+function getCachedProviders(tmdbId) {
+  try {
+    const raw = localStorage.getItem('thecollection_providers_' + tmdbId);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > 24 * 60 * 60 * 1000) return null;
+    return data;
+  } catch { return null; }
+}
+
+function setCachedProviders(tmdbId, data) {
+  try {
+    localStorage.setItem('thecollection_providers_' + tmdbId, JSON.stringify({ data, ts: Date.now() }));
+  } catch {}
+}
+
 // getCachedTextures(key) — synchronous fast path (L1/L2 hit)
 // getCachedTextures(key, hlEl, shEl) — deferred generation on L3 miss; returns null
 function getCachedTextures(key, hlEl, shEl) {
@@ -1230,6 +1252,7 @@ const STANDARDS_KEY  = 'thecollection_standards';
 const TOTAL_COST_KEY      = 'thecollection_total_cost';
 const TASTE_SIGNALS_KEY     = 'thecollection_taste_signals';
 const ANTICIPATED_KEY       = 'thecollection_anticipated';
+const WTW_COUNTRY_KEY       = 'thecollection_wtw_country';
 totalCost = parseFloat(localStorage.getItem(TOTAL_COST_KEY) || '0') || 0;
 
 // ── Supabase sync ─────────────────────────────────────────────────────────────
@@ -2105,6 +2128,19 @@ function syncOrderFromDOM() {
   saveMovies();
 }
 
+// Controls
+const GRAIN_KEY = 'thecollection_grain';
+function loadGrainSettings() {
+  try { return JSON.parse(localStorage.getItem(GRAIN_KEY)) || {}; } catch { return {}; }
+}
+function saveGrainSettings() {
+  localStorage.setItem(GRAIN_KEY, JSON.stringify({ grainEnabled, grainLevel, darkBoost }));
+}
+const _g = loadGrainSettings();
+let grainEnabled = _g.grainEnabled ?? true;
+let grainLevel   = _g.grainLevel   ?? 0.04;
+let darkBoost    = _g.darkBoost    ?? 100;
+
 // Render immediately from localStorage, then re-render if Supabase sync brings newer data.
 (async function init() {
   loadMovies();
@@ -2126,19 +2162,6 @@ function syncOrderFromDOM() {
 setInterval(() => saveSnapshot('Auto-save · ' + new Date().toLocaleString()), 10 * 60 * 1000);
 
 updateSortable('collection');
-
-// Controls
-const GRAIN_KEY = 'thecollection_grain';
-function loadGrainSettings() {
-  try { return JSON.parse(localStorage.getItem(GRAIN_KEY)) || {}; } catch { return {}; }
-}
-function saveGrainSettings() {
-  localStorage.setItem(GRAIN_KEY, JSON.stringify({ grainEnabled, grainLevel, darkBoost }));
-}
-const _g = loadGrainSettings();
-let grainEnabled = _g.grainEnabled ?? true;
-let grainLevel   = _g.grainLevel   ?? 0.04;
-let darkBoost    = _g.darkBoost    ?? 100;
 
 function applyGrain() {
   const opacity = grainEnabled ? grainLevel : 0;
@@ -2178,7 +2201,48 @@ function openMovieModal(movie, list = null) {
   const isLive = !!mmGetActiveSession(movie.title);
   modalEl.classList.toggle('movie-modal--live', isLive);
 
-  // Show loading state immediately with known data
+  // Show loading state immediately with known data + interactive skeleton tabs
+  const SKEL_DETAILS = `
+    <div class="mm-genres">
+      <div class="mm-loading-bar mm-skel-tag"></div>
+      <div class="mm-loading-bar mm-skel-tag"></div>
+      <div class="mm-loading-bar mm-skel-tag"></div>
+    </div>
+    <div class="mm-loading-bar mm-skel-tagline"></div>
+    <div class="mm-loading-bar mm-skel-overview" style="margin-top:16px"></div>
+    <div class="mm-loading-bar mm-skel-overview" style="width:95%"></div>
+    <div class="mm-loading-bar mm-skel-overview" style="width:88%"></div>
+    <div class="mm-loading-bar mm-skel-overview" style="width:80%"></div>
+    <div class="mm-loading-bar mm-skel-overview" style="width:60%"></div>
+    <div class="mm-section-label mm-skel-label"></div>
+    <div class="mm-cast">
+      ${Array(7).fill('<div class="mm-cast-item"><div class="mm-cast-photo mm-skel-circle"></div><div class="mm-loading-bar mm-skel-cast-name"></div><div class="mm-loading-bar mm-skel-cast-char"></div><div class="mm-loading-bar mm-skel-cast-char mm-skel-cast-char--2"></div></div>').join('')}
+    </div>
+    <div class="mm-section-label mm-skel-label"></div>
+    <div class="mm-crew">
+      ${Array(5).fill('<div class="mm-crew-row"><div class="mm-loading-bar mm-skel-crew-role"></div><div class="mm-loading-bar mm-skel-crew-name"></div></div>').join('')}
+    </div>`;
+  const SKEL_SESSION = `
+    <div style="margin-top:12px">
+      <div class="mm-loading-bar" style="height:36px;border-radius:8px;margin-bottom:12px"></div>
+      <div class="mm-loading-bar" style="height:80px;border-radius:8px;margin-bottom:8px"></div>
+      <div class="mm-loading-bar" style="height:80px;border-radius:8px;width:70%;margin-bottom:8px"></div>
+      <div class="mm-loading-bar" style="height:80px;border-radius:8px;width:50%;margin-bottom:8px"></div>
+      <div class="mm-loading-bar" style="height:36px;border-radius:8px;margin-top:16px"></div>
+    </div>`;
+  const SKEL_WTW = `
+    <div style="margin-top:12px">
+      <div class="mm-loading-bar" style="height:36px;width:260px;border-radius:6px;margin-bottom:28px"></div>
+      <div class="mm-loading-bar" style="height:12px;width:60px;border-radius:3px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:28px">
+        ${Array(4).fill('<div class="mm-loading-bar" style="width:80px;height:80px;border-radius:12px;flex-shrink:0"></div>').join('')}
+      </div>
+      <div class="mm-loading-bar" style="height:12px;width:80px;border-radius:3px;margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        ${Array(3).fill('<div class="mm-loading-bar" style="width:80px;height:80px;border-radius:12px;flex-shrink:0"></div>').join('')}
+      </div>
+    </div>`;
+
   body.innerHTML = `
     <div class="mm-poster-col">
       <img class="mm-poster" src="${movie.poster}" alt="${movie.title}">
@@ -2192,39 +2256,39 @@ function openMovieModal(movie, list = null) {
       <div class="mm-info-header mm-info-header--no-shadow">
         <div class="mm-title-row"><div class="mm-title">${movie.title}</div></div>
         <div class="mm-meta">${[movie.director, movie.year].filter(Boolean).join(' · ')}</div>
-        <div class="mm-tabs mm-tabs-skel">
-          <div class="mm-tab mm-tab-active">Details</div>
-          <div class="mm-tab">Session</div>
+        <div class="mm-tabs mm-tabs-skel" id="mm-skel-tabs">
+          <button class="mm-tab mm-tab-active" data-skel="details">Details</button>
+          <button class="mm-tab" data-skel="session">Session</button>
+          <button class="mm-tab" data-skel="wtw">Where to watch</button>
         </div>
       </div>
-      <div class="mm-tab-content">
-        <div class="mm-genres">
-          <div class="mm-loading-bar mm-skel-tag"></div>
-          <div class="mm-loading-bar mm-skel-tag"></div>
-          <div class="mm-loading-bar mm-skel-tag"></div>
-        </div>
-        <div class="mm-loading-bar mm-skel-tagline"></div>
-        <div class="mm-loading-bar mm-skel-overview" style="margin-top:16px"></div>
-        <div class="mm-loading-bar mm-skel-overview" style="width:95%"></div>
-        <div class="mm-loading-bar mm-skel-overview" style="width:88%"></div>
-        <div class="mm-loading-bar mm-skel-overview" style="width:80%"></div>
-        <div class="mm-loading-bar mm-skel-overview" style="width:60%"></div>
-        <div class="mm-section-label mm-skel-label"></div>
-        <div class="mm-cast">
-          ${Array(7).fill('<div class="mm-cast-item"><div class="mm-cast-photo mm-skel-circle"></div><div class="mm-loading-bar mm-skel-cast-name"></div><div class="mm-loading-bar mm-skel-cast-char"></div><div class="mm-loading-bar mm-skel-cast-char mm-skel-cast-char--2"></div></div>').join('')}
-        </div>
-        <div class="mm-section-label mm-skel-label"></div>
-        <div class="mm-crew">
-          ${Array(5).fill('<div class="mm-crew-row"><div class="mm-loading-bar mm-skel-crew-role"></div><div class="mm-loading-bar mm-skel-crew-name"></div></div>').join('')}
-        </div>
-      </div>
+      <div class="mm-tab-content" id="mm-skel-content">${SKEL_DETAILS}</div>
     </div>`;
+
+  // Lock min-height to the Details skeleton's rendered height so other tabs don't shift the modal
+  const skelContent = body.querySelector('#mm-skel-content');
+  if (skelContent) skelContent.style.minHeight = skelContent.scrollHeight + 'px';
+
+  // Wire skeleton tab switching
+  body.querySelectorAll('[data-skel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      body.querySelectorAll('[data-skel]').forEach(b => b.classList.remove('mm-tab-active'));
+      btn.classList.add('mm-tab-active');
+      const content = body.querySelector('#mm-skel-content');
+      if (content) content.innerHTML = { details: SKEL_DETAILS, session: SKEL_SESSION, wtw: SKEL_WTW }[btn.dataset.skel];
+    });
+  });
 
   const cacheKey = `${movie.title}__${movie.year}`;
   modalCurrentKey = cacheKey;
 
+  function getActiveSkelTab() {
+    const active = body.querySelector('[data-skel].mm-tab-active');
+    return active ? active.dataset.skel : 'details';
+  }
+
   if (modalDetailsCache.has(cacheKey)) {
-    renderModalDetails(body, movie, modalDetailsCache.get(cacheKey));
+    renderModalDetails(body, movie, modalDetailsCache.get(cacheKey), getActiveSkelTab());
     return;
   }
 
@@ -2232,7 +2296,7 @@ function openMovieModal(movie, list = null) {
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(data => {
       modalDetailsCache.set(cacheKey, data);
-      if (modalCurrentKey === cacheKey) renderModalDetails(body, movie, data);
+      if (modalCurrentKey === cacheKey) renderModalDetails(body, movie, data, getActiveSkelTab());
     })
     .catch(() => {});
 }
@@ -2262,7 +2326,7 @@ function mmGetActiveSession(title) {
   return data;
 }
 
-function renderModalDetails(body, movie, data) {
+function renderModalDetails(body, movie, data, initialTab = 'details') {
   // Backfill director into storage if the API returned one and we didn't have it
   if (!movie.director && data.director) {
     const listKeys = ['movies', 'watchlist', 'maybe', 'meh', 'banned'];
@@ -2280,7 +2344,7 @@ function renderModalDetails(body, movie, data) {
   }
 
   ModalComponent.renderModal(body, movie, data, {
-    initialTab: 'details',
+    initialTab,
     onWatchTonight: (m) => watchTonight(m, gridView),
     getActiveSessions: () => loadNowWatching(),
     getPastSessions: () => {
@@ -2309,6 +2373,20 @@ function renderModalDetails(body, movie, data) {
         }),
       });
       return res.ok ? res.json() : { facts: [] };
+    },
+    getCountry: () => getWTWCountry(),
+    onCountryChange: (code) => { localStorage.setItem(WTW_COUNTRY_KEY, code); },
+    onFetchProviders: async (tmdbId, country) => {
+      if (!tmdbId) return null;
+      const cached = getCachedProviders(tmdbId);
+      if (cached && cached.country === country) return cached;
+      try {
+        const res = await fetch(`/api/watch-providers?tmdb_id=${tmdbId}&country=${country}&title=${encodeURIComponent(movie.title)}&year=${movie.year || ''}`);
+        if (!res.ok) return null;
+        const providerData = await res.json();
+        setCachedProviders(tmdbId, providerData);
+        return providerData;
+      } catch { return null; }
     },
   });
 }
