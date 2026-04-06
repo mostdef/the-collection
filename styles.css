@@ -2469,6 +2469,7 @@ main {
 .movie-modal-close:hover { background: rgba(255,255,255,0.15); }
 
 /* Not-found bar — shown when deep-linking to a film not in any list */
+.mm-not-found-bar[hidden] { display: none; }
 .mm-not-found-bar {
   display: flex;
   align-items: center;
@@ -4379,6 +4380,9 @@ main {
 .nww-diary-form-grid.is-tv .nww-diary-field-series {
   display: flex;
 }
+.nww-diary-field-series-toggle {
+  justify-content: flex-end;
+}
 .nww-diary-field.is-hidden {
   display: none;
 }
@@ -4392,6 +4396,20 @@ main {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(24,21,17,0.46);
+}
+.nww-diary-inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 2px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: rgba(24,21,17,0.7);
+}
+.nww-diary-inline-check input {
+  width: 16px;
+  height: 16px;
 }
 .nww-diary-input,
 .nww-diary-textarea {
