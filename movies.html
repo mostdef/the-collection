@@ -261,6 +261,16 @@
     <div class="movie-modal" id="movie-modal">
       <button class="movie-modal-close" id="movie-modal-close">✕</button>
       <div class="mm-nav-counter" id="mm-nav-counter"></div>
+      <div class="mm-not-found-bar" id="mm-not-found-bar" hidden>
+        <span class="mm-not-found-msg">Not in your collection</span>
+        <div class="mm-not-found-actions">
+          <button class="mm-add-btn" data-list="collection">+ Collection</button>
+          <button class="mm-add-btn" data-list="watchlist">+ Watch Tonight</button>
+          <button class="mm-add-btn" data-list="maybe">+ Wildcard</button>
+          <button class="mm-add-btn" data-list="meh">+ Meh</button>
+          <button class="mm-add-btn" data-list="banned">+ Don't Rec</button>
+        </div>
+      </div>
       <div class="movie-modal-body" id="movie-modal-body"></div>
     </div>
     <button class="mm-nav-btn" id="mm-nav-next">&#8594;</button>

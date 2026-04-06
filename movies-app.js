@@ -1678,16 +1678,30 @@ function formatDiaryEpisodeCode(seasonNumber, episodeNumber) {
   return `S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`;
 }
 
+function formatDiaryEpisodeSpan(seasonNumber, fromEpisodeNumber, toEpisodeNumber = fromEpisodeNumber) {
+  if (!seasonNumber || !fromEpisodeNumber) return '';
+  if (!toEpisodeNumber || toEpisodeNumber === fromEpisodeNumber) {
+    return formatDiaryEpisodeCode(seasonNumber, fromEpisodeNumber);
+  }
+  return `S${String(seasonNumber).padStart(2, '0')}E${String(fromEpisodeNumber).padStart(2, '0')}–E${String(toEpisodeNumber).padStart(2, '0')}`;
+}
+
 function resetDiarySeriesFields() {
   if (diary.formGrid) diary.formGrid.classList.remove('is-tv');
   if (diary.seasonInput) {
     diary.seasonInput.innerHTML = '<option value="">Choose season</option>';
     diary.seasonInput.disabled = true;
   }
-  if (diary.episodeInput) {
-    diary.episodeInput.innerHTML = '<option value="">Choose episode</option>';
-    diary.episodeInput.disabled = true;
+  if (diary.singleEpisodeInput) diary.singleEpisodeInput.checked = false;
+  if (diary.episodeFromInput) {
+    diary.episodeFromInput.innerHTML = '<option value="">Choose start episode</option>';
+    diary.episodeFromInput.disabled = true;
   }
+  if (diary.episodeToInput) {
+    diary.episodeToInput.innerHTML = '<option value="">Choose end episode</option>';
+    diary.episodeToInput.disabled = true;
+  }
+  setDiaryEpisodeRangeVisibility();
 }
 
 function setDiarySeriesFieldsVisibility(isTv) {
@@ -1697,44 +1711,74 @@ function setDiarySeriesFieldsVisibility(isTv) {
     return;
   }
   if (diary.seasonInput) diary.seasonInput.disabled = false;
+  setDiaryEpisodeRangeVisibility();
 }
 
-async function loadDiaryTvEpisodes(tmdbId, seasonNumber, selectedEpisodeNumber = null) {
-  if (!diary.episodeInput || !tmdbId || !seasonNumber) return;
+function setDiaryEpisodeRangeVisibility() {
+  const isSingle = !!diary.singleEpisodeInput?.checked;
+  diary.episodeToField?.classList.toggle('is-hidden', isSingle);
+  if (diary.episodeToInput) diary.episodeToInput.disabled = isSingle || diary.episodeToInput.dataset.loading === 'true';
+}
+
+function getDiaryEpisodeOptionLabel(seasonNumber, episode) {
+  return `${formatDiaryEpisodeCode(seasonNumber, episode.episode_number)} · ${episode.name || 'Untitled episode'}`;
+}
+
+async function loadDiaryTvEpisodes(tmdbId, seasonNumber, selectedFromEpisodeNumber = null, selectedToEpisodeNumber = null) {
+  if (!diary.episodeFromInput || !diary.episodeToInput || !tmdbId || !seasonNumber) return;
   const token = ++diary.tvRequestToken;
-  diary.episodeInput.disabled = true;
-  diary.episodeInput.innerHTML = '<option value="">Loading episodes…</option>';
+  diary.episodeFromInput.disabled = true;
+  diary.episodeToInput.disabled = true;
+  diary.episodeToInput.dataset.loading = 'true';
+  diary.episodeFromInput.innerHTML = '<option value="">Loading episodes…</option>';
+  diary.episodeToInput.innerHTML = '<option value="">Loading episodes…</option>';
   try {
     const res = await fetch(`/api/tv-details?tmdb_id=${encodeURIComponent(tmdbId)}&season_number=${encodeURIComponent(seasonNumber)}`);
     if (!res.ok) throw new Error('episode_lookup_failed');
     const data = await res.json();
     if (token !== diary.tvRequestToken) return;
     const episodes = Array.isArray(data.episodes) ? data.episodes : [];
-    diary.episodeInput.innerHTML = '<option value="">Choose episode</option>';
+    diary.episodeFromInput.innerHTML = '<option value="">Choose start episode</option>';
+    diary.episodeToInput.innerHTML = '<option value="">Choose end episode</option>';
     episodes.forEach((episode) => {
-      const option = document.createElement('option');
-      option.value = String(episode.episode_number);
-      option.textContent = `${formatDiaryEpisodeCode(seasonNumber, episode.episode_number)} · ${episode.name || 'Untitled episode'}`;
-      option.dataset.episodeTitle = episode.name || '';
-      diary.episodeInput.appendChild(option);
+      const optionFrom = document.createElement('option');
+      optionFrom.value = String(episode.episode_number);
+      optionFrom.textContent = getDiaryEpisodeOptionLabel(seasonNumber, episode);
+      optionFrom.dataset.episodeTitle = episode.name || '';
+      diary.episodeFromInput.appendChild(optionFrom);
+
+      const optionTo = optionFrom.cloneNode(true);
+      diary.episodeToInput.appendChild(optionTo);
     });
-    diary.episodeInput.disabled = false;
-    if (selectedEpisodeNumber) diary.episodeInput.value = String(selectedEpisodeNumber);
+    diary.episodeFromInput.disabled = false;
+    diary.episodeToInput.dataset.loading = 'false';
+    const defaultFrom = selectedFromEpisodeNumber || episodes[0]?.episode_number || null;
+    const defaultTo = selectedToEpisodeNumber || episodes[episodes.length - 1]?.episode_number || defaultFrom;
+    if (defaultFrom) diary.episodeFromInput.value = String(defaultFrom);
+    if (defaultTo) diary.episodeToInput.value = String(defaultTo);
+    setDiaryEpisodeRangeVisibility();
   } catch {
     if (token !== diary.tvRequestToken) return;
-    diary.episodeInput.innerHTML = '<option value="">Could not load episodes</option>';
+    diary.episodeFromInput.innerHTML = '<option value="">Could not load episodes</option>';
+    diary.episodeToInput.innerHTML = '<option value="">Could not load episodes</option>';
+    diary.episodeToInput.dataset.loading = 'false';
+    setDiaryEpisodeRangeVisibility();
   }
 }
 
-async function loadDiaryTvSeasons(result, selectedSeasonNumber = null, selectedEpisodeNumber = null) {
+async function loadDiaryTvSeasons(result, selectedSeasonNumber = null, selectedFromEpisodeNumber = null, selectedToEpisodeNumber = null) {
   if (!diary.seasonInput || !result?.tmdb_id) return;
   const token = ++diary.tvRequestToken;
   setDiarySeriesFieldsVisibility(true);
   diary.seasonInput.disabled = true;
   diary.seasonInput.innerHTML = '<option value="">Loading seasons…</option>';
-  if (diary.episodeInput) {
-    diary.episodeInput.innerHTML = '<option value="">Choose episode</option>';
-    diary.episodeInput.disabled = true;
+  if (diary.episodeFromInput) {
+    diary.episodeFromInput.innerHTML = '<option value="">Choose start episode</option>';
+    diary.episodeFromInput.disabled = true;
+  }
+  if (diary.episodeToInput) {
+    diary.episodeToInput.innerHTML = '<option value="">Choose end episode</option>';
+    diary.episodeToInput.disabled = true;
   }
   try {
     const res = await fetch(`/api/tv-details?tmdb_id=${encodeURIComponent(result.tmdb_id)}`);
@@ -1750,9 +1794,10 @@ async function loadDiaryTvSeasons(result, selectedSeasonNumber = null, selectedE
       diary.seasonInput.appendChild(option);
     });
     diary.seasonInput.disabled = false;
-    if (selectedSeasonNumber) {
-      diary.seasonInput.value = String(selectedSeasonNumber);
-      await loadDiaryTvEpisodes(result.tmdb_id, selectedSeasonNumber, selectedEpisodeNumber);
+    const defaultSeasonNumber = selectedSeasonNumber || seasons[seasons.length - 1]?.season_number || null;
+    if (defaultSeasonNumber) {
+      diary.seasonInput.value = String(defaultSeasonNumber);
+      await loadDiaryTvEpisodes(result.tmdb_id, defaultSeasonNumber, selectedFromEpisodeNumber, selectedToEpisodeNumber);
     }
   } catch {
     if (token !== diary.tvRequestToken) return;
@@ -1850,7 +1895,13 @@ function renderWatchDiary() {
     const note = entry.note && entry.note.trim()
       ? entry.note.trim()
       : [
-          entry.mediaType === 'tv_episode' ? formatDiaryEpisodeCode(entry.seasonNumber, entry.episodeNumber) : null,
+          (entry.mediaType === 'tv_episode' || entry.mediaType === 'tv')
+            ? formatDiaryEpisodeSpan(
+              entry.seasonNumber,
+              entry.episodeStartNumber || entry.episodeNumber,
+              entry.singleEpisode ? (entry.episodeStartNumber || entry.episodeNumber) : (entry.episodeEndNumber || entry.episodeStartNumber || entry.episodeNumber),
+            )
+            : null,
           entry.mediaType === 'tv' ? 'TV Series' : null,
           entry.year,
           entry.director,
@@ -2306,12 +2357,33 @@ function pushViewUrl(view) {
   if (location.href !== location.origin + url) history.pushState({ view, sort }, '', url);
 }
 
+function pushModalUrl(view, movie) {
+  const slug = VIEW_SLUGS[view] || view;
+  const sort = getSortMode(view);
+  const params = new URLSearchParams();
+  if (sort && sort !== 'preference') params.set('sort', sort);
+  params.set('film', movie.title);
+  if (movie.year) params.set('year', String(movie.year));
+  const url = `/movies.html#${slug}?${params}`;
+  if (location.href !== location.origin + url) history.pushState({ view, film: movie.title }, '', url);
+}
+
+function stripModalUrl(view) {
+  const slug = VIEW_SLUGS[view] || view;
+  const sort = getSortMode(view);
+  const params = sort && sort !== 'preference' ? `?sort=${sort}` : '';
+  const url = `/movies.html#${slug}${params}`;
+  if (location.href !== location.origin + url) history.replaceState({ view }, '', url);
+}
+
 function readViewUrl() {
   const hash = location.hash.replace('#', '').split('?')[0];
   const params = new URLSearchParams(location.hash.includes('?') ? location.hash.split('?')[1] : '');
   const view = SLUG_TO_VIEW[hash] || (VIEWS.includes(hash) ? hash : null);
   const sort = params.get('sort');
-  return { view, sort };
+  const filmTitle = params.get('film');
+  const film = filmTitle ? { title: filmTitle, year: params.get('year') || null } : null;
+  return { view, sort, film };
 }
 
 function setGridView(view, { pushUrl = true } = {}) {
@@ -2899,7 +2971,18 @@ let darkBoost    = _g.darkBoost    ?? 100;
 
 // ── URL routing ───────────────────────────────────────────────────────────────
 window.addEventListener('popstate', () => {
-  const { view, sort } = readViewUrl();
+  const { view, sort, film } = readViewUrl();
+  const modalOpen = document.getElementById('movie-modal-backdrop').style.display !== 'none';
+  if (film) {
+    openMovieModalByTitle(film.title, film.year, { pushUrl: false });
+  } else if (modalOpen) {
+    // Back-navigated away from a modal URL — close without touching history
+    document.getElementById('movie-modal-backdrop').style.display = 'none';
+    document.body.style.overflow = '';
+    modalAnticipatedMode = false;
+    const notFoundBar = document.getElementById('mm-not-found-bar');
+    if (notFoundBar) notFoundBar.hidden = true;
+  }
   if (view && VIEWS.includes(view)) {
     if (sort) setSortMode(view, sort);
     setGridView(view, { pushUrl: false });
@@ -2911,7 +2994,7 @@ window.addEventListener('popstate', () => {
   loadMovies();
 
   // Restore view + sort from URL if present
-  const { view: urlView, sort: urlSort } = readViewUrl();
+  const { view: urlView, sort: urlSort, film: urlFilm } = readViewUrl();
   if (urlView && VIEWS.includes(urlView)) {
     if (urlSort) setSortMode(urlView, urlSort);
     gridView = urlView;
@@ -2935,6 +3018,10 @@ window.addEventListener('popstate', () => {
     renderGridNav();
     renderWatchDiary();
     renderSessionJournal();
+  }
+
+  if (urlFilm) {
+    requestAnimationFrame(() => openMovieModalByTitle(urlFilm.title, urlFilm.year, { pushUrl: false }));
   }
 })();
 
@@ -3049,6 +3136,9 @@ function openMovieModal(movie, list = null, opts = {}) {
   const body       = document.getElementById('movie-modal-body');
   const modalEl    = document.getElementById('movie-modal');
   backdrop.style.display = 'flex';
+  if (opts.pushUrl !== false) pushModalUrl(gridView, movie);
+  const notFoundBar = document.getElementById('mm-not-found-bar');
+  if (notFoundBar) notFoundBar.hidden = true;
   document.body.style.overflow = 'hidden';
 
   // Golden glow when this film has an active watching session
@@ -3332,6 +3422,94 @@ function closeMovieModal() {
   document.getElementById('movie-modal-backdrop').style.display = 'none';
   document.body.style.overflow = '';
   modalAnticipatedMode = false;
+  const notFoundBar = document.getElementById('mm-not-found-bar');
+  if (notFoundBar) notFoundBar.hidden = true;
+  stripModalUrl(gridView);
+}
+
+function openMovieModalByTitle(title, year, opts = {}) {
+  const norm = t => (t || '').toLowerCase().trim();
+  const normTitle = norm(title);
+  const allMovies = [
+    ...movies,
+    ...loadWatchlist(),
+    ...loadMaybe(),
+    ...loadMeh(),
+    ...loadBanned(),
+    ...loadStandards(),
+    ...loadAnticipated(),
+  ];
+  // Try title + year match first, then title-only fallback
+  let found = year
+    ? allMovies.find(m => norm(m.title) === normTitle && String(m.year) === String(year))
+    : null;
+  if (!found) found = allMovies.find(m => norm(m.title) === normTitle);
+
+  if (found) {
+    openMovieModal(found, null, opts);
+  } else {
+    // Ghost modal: film not in any list
+    const ghost = { title, year: year || null, poster: null };
+    openMovieModal(ghost, null, opts);
+    // Show the not-found bar with add buttons
+    const notFoundBar = document.getElementById('mm-not-found-bar');
+    if (notFoundBar) {
+      notFoundBar.hidden = false;
+      initNotFoundBar(ghost, notFoundBar);
+    }
+  }
+}
+
+function initNotFoundBar(movie, bar) {
+  // Wire add buttons — each removes from other lists, adds to target, hides bar
+  bar.querySelectorAll('.mm-add-btn').forEach(btn => {
+    // Clone to remove previous listeners
+    const fresh = btn.cloneNode(true);
+    btn.replaceWith(fresh);
+    fresh.addEventListener('click', () => {
+      const list = fresh.dataset.list;
+      const film = {
+        title: movie.title,
+        year: movie.year || null,
+        poster: movie.poster || null,
+        addedAt: Date.now(),
+      };
+      removeFromOtherLists(film.title);
+      if (list === 'collection') {
+        movies.unshift(film);
+        saveMovies();
+        markDirty('collection');
+        setGridView('collection');
+        renderGridNav();
+      } else if (list === 'watchlist') {
+        const wl = loadWatchlist();
+        wl.unshift(film);
+        saveWatchlist(wl);
+        markDirty('watchlist');
+        renderGridNav();
+      } else if (list === 'maybe') {
+        const my = loadMaybe();
+        my.unshift(film);
+        saveMaybe(my);
+        markDirty('maybe');
+        renderGridNav();
+      } else if (list === 'meh') {
+        const mh = loadMeh();
+        mh.unshift(film);
+        saveMeh(mh);
+        markDirty('meh');
+        renderGridNav();
+      } else if (list === 'banned') {
+        const bn = loadBanned();
+        bn.unshift(film);
+        saveBanned(bn);
+        markDirty('banned');
+        renderGridNav();
+      }
+      invalidateTabCounts();
+      bar.hidden = true;
+    });
+  });
 }
 
 function modalNavigate(dir) {

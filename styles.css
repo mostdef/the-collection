@@ -2468,6 +2468,56 @@ main {
 }
 .movie-modal-close:hover { background: rgba(255,255,255,0.15); }
 
+/* Not-found bar — shown when deep-linking to a film not in any list */
+.mm-not-found-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 24px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-wrap: wrap;
+}
+
+.mm-not-found-msg {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.mm-not-found-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mm-add-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 5px 12px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.mm-add-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.mm-add-btn:active {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .movie-modal-body {
   display: flex;
   gap: 36px;
@@ -5257,6 +5307,7 @@ select.nww-diary-input {
   .nww-diary-entries .nww-diary-empty { animation: none !important; }
   .nww-chat-input-area.has-content .nww-chat-send { transform: none; }
   .nav-ai-switch, .nav-ai-switch::after, .nav-ai-label { transition: none !important; }
+  .mm-add-btn { transition: none !important; }
 }
 
 /* ── Where to Watch — popover ───────────────────────────────────────────────── */
