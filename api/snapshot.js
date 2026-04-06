@@ -20,9 +20,11 @@ module.exports = async function handler(req, res) {
 
     if (req.method === 'POST') {
       const snap = req.body;
+      const ts = snap.ts || Date.now();
+      if (isDuplicatePost(ts)) return res.json({ ok: true, duplicate: true });
       const { error } = await supabase
         .from('snapshots')
-        .insert({ user_id: user.id, ts: snap.ts || Date.now(), label: snap.label, data: snap });
+        .insert({ user_id: user.id, ts, label: snap.label, data: snap });
       if (error) {
         console.error('snapshot insert error:', error);
         return res.status(500).json({ error: 'db_error', detail: error.message, code: error.code });
@@ -51,11 +53,37 @@ module.exports = async function handler(req, res) {
 };
 
 // ── Filesystem fallback (local dev without Supabase auth) ─────────────────────
+
+// Dedup cache: prevent duplicate POSTs keyed by ts (in-memory, best-effort)
+const _recentTs = new Set();
+function isDuplicatePost(ts) {
+  if (_recentTs.has(ts)) return true;
+  _recentTs.add(ts);
+  setTimeout(() => _recentTs.delete(ts), 2000);
+  return false;
+}
+
+// Filesystem-based time-window lock: rejects any POST within 1s of the last one.
+// Survives module re-instantiation because the lock lives on disk.
+const LOCK_FILE = path.join(DIR, '.last-save');
+function isRecentSave() {
+  try {
+    return Date.now() - parseInt(fs.readFileSync(LOCK_FILE, 'utf8')) < 1000;
+  } catch { return false; }
+}
+function markSaved() {
+  try { fs.writeFileSync(LOCK_FILE, String(Date.now())); } catch {}
+}
+
 function handleFilesystem(req, res) {
   if (req.method === 'POST') {
     const snap = req.body;
     const ts   = snap.ts || Date.now();
     const file = path.join(DIR, `${ts}.json`);
+    if (isDuplicatePost(ts) || fs.existsSync(file) || isRecentSave()) {
+      return res.json({ ok: true, duplicate: true });
+    }
+    markSaved();
     fs.writeFileSync(file, JSON.stringify(snap, null, 2));
     return res.json({ ok: true, file: path.basename(file) });
   }

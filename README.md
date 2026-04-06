@@ -6,8 +6,8 @@ A personal film curation tool for reflective movie watching. Not a streaming app
 
 ## What it does
 
-- **Curate** your collection across five categories: Collection, To Watch, Wildcard, Meh, Don't Recommend
-- **Anticipated** — track unreleased films with a countdown to their theatrical premiere; notifies you when something you were waiting for has arrived
+- **Curate** your collection across five categories: Collection, To Watch, Wildcard, Meh, Don't Recommend — each reachable by direct link with sort preserved in the URL
+- **Anticipated** — track unreleased films with a countdown to their theatrical premiere; notifies you when something you were waiting for has arrived; Coming Soon strip always shows five upcoming films, auto-refilling as you act on suggestions
 - **Reference films** — pin up to 12 standards that anchor your taste and inform recommendations
 - **AI recommendations** powered by Claude, tuned to your taste profile
 - **Now Watching widget** — track a live session with a real-time timer, pause/resume, and a film companion (timed facts + chat)

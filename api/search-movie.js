@@ -19,23 +19,52 @@ module.exports = async function handler(req, res) {
   if (req.query.type === 'upcoming') {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     try {
-      const upRes = await fetch(
-        `${TMDB_BASE}/movie/upcoming?language=en-US&page=${page}`,
-        { headers }
-      );
-      const upcoming = await upRes.json();
       const today = new Date().toISOString().slice(0, 10);
-      const results = (upcoming.results || [])
-        .filter(m => m.release_date && m.release_date > today)
-        .slice(0, 5)
-        .map(m => ({
+      const collected = [];
+      const seenIds = new Set();
+      let totalPages = 999; // updated after first fetch
+
+      // Each client page maps to a non-overlapping window of 6 TMDB pages
+      // client page 1 → TMDB 1-6, page 2 → TMDB 7-12, etc.
+      const tmdbStart = (page - 1) * 6 + 1;
+      let fetchPage = tmdbStart;
+      // Fetch pages until we have 30 future films (client filters against user's lists)
+      while (collected.length < 30 && fetchPage <= Math.min(totalPages, tmdbStart + 5)) {
+        const upRes = await fetch(
+          `${TMDB_BASE}/movie/upcoming?language=en-US&page=${fetchPage}`,
+          { headers }
+        );
+        const upcoming = await upRes.json();
+        totalPages = upcoming.total_pages || 1;
+        for (const m of (upcoming.results || [])) {
+          if (m.release_date && m.release_date > today && !seenIds.has(m.id)) {
+            seenIds.add(m.id);
+            collected.push(m);
+          }
+        }
+        fetchPage++;
+      }
+
+      const top = collected.slice(0, 30);
+      const results = await Promise.all(top.map(async m => {
+        let director = null;
+        try {
+          const detRes = await fetch(`${TMDB_BASE}/movie/${m.id}?append_to_response=credits&language=en-US`, { headers });
+          const det = await detRes.json();
+          director = det.credits?.crew?.find(c => c.job === 'Director')?.name || null;
+        } catch {}
+        return {
           title:        m.title,
           year:         m.release_date ? parseInt(m.release_date) : null,
           poster:       m.poster_path ? `${TMDB_IMG}w200${m.poster_path}` : null,
           tmdb_id:      m.id,
           release_date: m.release_date,
-        }));
-      return res.json({ results, page, total_pages: upcoming.total_pages || 1 });
+          director,
+        };
+      }));
+      // Convert TMDB total_pages to client pages (each client page covers 6 TMDB pages)
+      const clientTotalPages = Math.ceil(totalPages / 6);
+      return res.json({ results, page, total_pages: clientTotalPages });
     } catch (e) {
       console.error('upcoming error:', e);
       return res.status(500).json({ error: 'api_error' });

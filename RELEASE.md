@@ -2,6 +2,38 @@
 
 ---
 
+## Latest — 2026-04-06
+
+### URL Routing
+- Every list is now directly linkable: `/movies.html#collection`, `#watchlist`, `#wildcard`, `#meh`, `#dont-recommend`, `#anticipated`
+- Active sort is preserved in the URL as `?sort=date` (or `rt`, `imdb`) — sharing or bookmarking a link restores both the view and the sort
+- Browser back/forward navigate between views as expected
+
+### Coming Soon Strip
+- Strip in the Anticipated view always maintains exactly 5 slots; empty slots show a subtle loading placeholder while new films are being fetched
+- Movies already routed to any list (Collection, To Watch, Meh, Don't Recommend, etc.) are filtered out from the strip immediately
+- Fetch strategy now explores non-overlapping batches of TMDB pages, so each request brings genuinely new suggestions rather than re-fetching the same films
+- Directors are now included on all suggestion cards
+
+### Upcoming Films — Release Date Split
+- Any list (Collection, To Watch, Wildcard, Meh, Don't Recommend) now shows a "Coming soon" divider separating films that haven't been released yet from the rest
+
+### Anticipated Modal
+- Action buttons (Anticipate / Meh / Don't recommend) are available immediately when the modal opens, without waiting for the details fetch to complete
+
+### Countdown Badge
+- Release countdown on Anticipated cards now overlays the top of the poster instead of sitting below it
+
+### Director Link
+- Director name in the modal header is now a clickable Wikipedia link, resolved via the same Wikidata lookup used for cast and crew
+- Director is always sourced from the freshest API data; stale stored values are corrected automatically
+
+### Snapshot Reliability
+- Fixed an issue where manually saving a snapshot could create two identical entries
+- Filesystem-based time-window lock prevents duplicate writes even when the request is processed more than once
+
+---
+
 ## Latest — 2026-04-05
 
 ### Where to Watch

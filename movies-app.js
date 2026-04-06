@@ -676,7 +676,11 @@ function render(list) {
   const nwData = loadNowWatching();
   const liveTitle = nwData ? nwData.title : null;
   const sessionedTitles = getSessionedTitles();
-  list.filter(movie => !standardTitles.has(movie.title)).forEach(movie => {
+  const filteredList = list.filter(movie => !standardTitles.has(movie.title));
+  const releasedMovies = filteredList.filter(m => !isFutureRelease(m));
+  const upcomingMovies = filteredList.filter(m => isFutureRelease(m));
+  [...releasedMovies, ...(upcomingMovies.length ? [null] : []), ...upcomingMovies].forEach(movie => {
+    if (movie === null) { g.appendChild(makeReleaseDivider()); return; }
     const card = CardComponent.renderCard(movie, {
       view: 'collection',
       isLive: movie.title === liveTitle,
@@ -1430,6 +1434,20 @@ function saveAnticipated(list) {
   localStorage.setItem(ANTICIPATED_KEY, JSON.stringify(list));
   schedulePush();
 }
+function isFutureRelease(movie) {
+  if (!movie.release_date) return false;
+  return movie.release_date > new Date().toISOString().slice(0, 10);
+}
+
+function makeReleaseDivider() {
+  const div = document.createElement('div');
+  div.className = 'grid-release-divider';
+  const label = document.createElement('span');
+  label.textContent = 'Coming soon';
+  div.appendChild(label);
+  return div;
+}
+
 function daysUntil(releaseDate) {
   if (!releaseDate) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -1624,8 +1642,31 @@ async function updateSortable(view) {
   }
 }
 
-function setGridView(view) {
+const VIEW_SLUGS = {
+  collection: 'collection', watchlist: 'watchlist', maybe: 'wildcard',
+  meh: 'meh', banned: 'dont-recommend', anticipated: 'anticipated',
+};
+const SLUG_TO_VIEW = Object.fromEntries(Object.entries(VIEW_SLUGS).map(([v, s]) => [s, v]));
+
+function pushViewUrl(view) {
+  const slug = VIEW_SLUGS[view] || view;
+  const sort = getSortMode(view);
+  const params = sort && sort !== 'preference' ? `?sort=${sort}` : '';
+  const url = `/movies.html#${slug}${params}`;
+  if (location.href !== location.origin + url) history.pushState({ view, sort }, '', url);
+}
+
+function readViewUrl() {
+  const hash = location.hash.replace('#', '').split('?')[0];
+  const params = new URLSearchParams(location.hash.includes('?') ? location.hash.split('?')[1] : '');
+  const view = SLUG_TO_VIEW[hash] || (VIEWS.includes(hash) ? hash : null);
+  const sort = params.get('sort');
+  return { view, sort };
+}
+
+function setGridView(view, { pushUrl = true } = {}) {
   gridView = view;
+  if (pushUrl) pushViewUrl(view);
   VIEWS.forEach(v => { getGrid(v).style.display = v === view ? '' : 'none'; });
   const sw = document.getElementById('standards-wrap');
   if (sw) sw.style.display = view === 'collection' ? '' : 'none';
@@ -1841,7 +1882,10 @@ function renderWatchlistGrid() {
   if (!list.length) { showEmptyState(g); markClean('watchlist'); return; }
   const _nwWL = loadNowWatching(); const _liveTitleWL = _nwWL ? _nwWL.title : null;
   const _sessionedWL = getSessionedTitles();
-  list.forEach(movie => {
+  const _wlReleased = list.filter(m => !isFutureRelease(m));
+  const _wlUpcoming = list.filter(m => isFutureRelease(m));
+  [..._wlReleased, ...(_wlUpcoming.length ? [null] : []), ..._wlUpcoming].forEach(movie => {
+    if (movie === null) { g.appendChild(makeReleaseDivider()); return; }
     const card = CardComponent.renderCard(movie, {
       view: 'watchlist',
       isLive: movie.title === _liveTitleWL,
@@ -1874,7 +1918,10 @@ function renderBannedGrid() {
   if (!banned.length) { showEmptyState(g); markClean('banned'); return; }
   const _nwBN = loadNowWatching(); const _liveTitleBN = _nwBN ? _nwBN.title : null;
   const _sessionedBN = getSessionedTitles();
-  banned.forEach(movie => {
+  const _bnReleased = banned.filter(m => !isFutureRelease(m));
+  const _bnUpcoming = banned.filter(m => isFutureRelease(m));
+  [..._bnReleased, ...(_bnUpcoming.length ? [null] : []), ..._bnUpcoming].forEach(movie => {
+    if (movie === null) { g.appendChild(makeReleaseDivider()); return; }
     const card = CardComponent.renderCard(movie, {
       view: 'banned',
       isLive: movie.title === _liveTitleBN,
@@ -1907,7 +1954,10 @@ function renderMaybeGrid() {
   if (!list.length) { showEmptyState(g); markClean('maybe'); return; }
   const _nwMB = loadNowWatching(); const _liveTitleMB = _nwMB ? _nwMB.title : null;
   const _sessionedMB = getSessionedTitles();
-  list.forEach(movie => {
+  const _mbReleased = list.filter(m => !isFutureRelease(m));
+  const _mbUpcoming = list.filter(m => isFutureRelease(m));
+  [..._mbReleased, ...(_mbUpcoming.length ? [null] : []), ..._mbUpcoming].forEach(movie => {
+    if (movie === null) { g.appendChild(makeReleaseDivider()); return; }
     const card = CardComponent.renderCard(movie, {
       view: 'maybe',
       isLive: movie.title === _liveTitleMB,
@@ -1940,7 +1990,10 @@ function renderMehGrid() {
   if (!list.length) { showEmptyState(g); markClean('meh'); return; }
   const _nwMH = loadNowWatching(); const _liveTitleMH = _nwMH ? _nwMH.title : null;
   const _sessionedMH = getSessionedTitles();
-  list.forEach(movie => {
+  const _mhReleased = list.filter(m => !isFutureRelease(m));
+  const _mhUpcoming = list.filter(m => isFutureRelease(m));
+  [..._mhReleased, ...(_mhUpcoming.length ? [null] : []), ..._mhUpcoming].forEach(movie => {
+    if (movie === null) { g.appendChild(makeReleaseDivider()); return; }
     const card = CardComponent.renderCard(movie, {
       view: 'meh',
       isLive: movie.title === _liveTitleMH,
@@ -1965,23 +2018,28 @@ function renderMehGrid() {
   markClean('meh');
 }
 
-let _upcomingPage = 1;
+let _upcomingPage = 0;
 let _upcomingSuggestions = [];
 let _upcomingLoading = false;
+let _upcomingTotalPages = 1;
 
 async function fetchUpcomingSuggestions(page = 1) {
   if (_upcomingLoading) return;
+  if (page > _upcomingTotalPages) return;
   _upcomingLoading = true;
   try {
     const res = await fetch(`/api/search-movie?type=upcoming&page=${page}`);
     if (!res.ok) return;
     const json = await res.json();
-    const existing = new Set(loadAnticipated().map(m => m.title.toLowerCase()));
-    const fresh = (json.results || []).filter(m => !existing.has(m.title.toLowerCase()));
-    _upcomingSuggestions = fresh;
+    _upcomingTotalPages = json.total_pages || 1;
+    const seenTitles = new Set(_upcomingSuggestions.map(m => m.title.toLowerCase()));
+    const fresh = (json.results || []).filter(m => !seenTitles.has(m.title.toLowerCase()));
+    _upcomingSuggestions = [..._upcomingSuggestions, ...fresh];
     _upcomingPage = page;
+  } catch {} finally {
+    _upcomingLoading = false;
     renderAnticipated();
-  } catch {} finally { _upcomingLoading = false; }
+  }
 }
 
 function renderAnticipated() {
@@ -1994,8 +2052,8 @@ function renderAnticipated() {
 
   g.innerHTML = '';
 
+  // ── Anticipated list (or empty state) ────────────────────────────────────
   if (!list.length) {
-    // Empty state
     const empty = document.createElement('div');
     empty.className = 'anticipated-empty';
     empty.innerHTML = `
@@ -2003,89 +2061,137 @@ function renderAnticipated() {
       <button class="grid-add-btn" id="anticipated-add-btn">+ Add film</button>
     `;
     g.appendChild(empty);
-
     empty.querySelector('#anticipated-add-btn').addEventListener('click', () => openSearchModal('anticipated'));
+  } else {
+    const addRow = document.createElement('div');
+    addRow.className = 'grid-sort-row';
+    const addBtn = document.createElement('button');
+    addBtn.className = 'grid-add-btn';
+    addBtn.innerHTML = '+ Add film';
+    addBtn.addEventListener('click', () => openSearchModal('anticipated'));
+    addRow.appendChild(addBtn);
+    g.appendChild(addRow);
 
-    if (!_upcomingSuggestions.length && !_upcomingLoading) {
-      fetchUpcomingSuggestions(1);
-    } else if (_upcomingSuggestions.length) {
-      const sugWrap = document.createElement('div');
-      sugWrap.className = 'anticipated-suggestions';
-      sugWrap.innerHTML = '<p class="anticipated-suggestions-label">Coming soon</p>';
-      _upcomingSuggestions.forEach(m => {
-        const card = document.createElement('div');
-        card.className = 'anticipated-suggestion-card';
-        card.innerHTML = `
-          ${m.poster ? `<img class="anticipated-suggestion-poster" src="${m.poster}" alt="" loading="lazy">` : '<div class="anticipated-suggestion-poster anticipated-suggestion-poster--empty"></div>'}
-          <div class="anticipated-suggestion-info">
-            <span class="anticipated-suggestion-title">${m.title}</span>
-            <span class="anticipated-suggestion-date">${formatReleaseDate(m.release_date)}</span>
-          </div>
-          <button class="anticipated-suggestion-add" data-title="${m.title}">+ Add</button>
-        `;
-        card.querySelector('.anticipated-suggestion-add').addEventListener('click', () => {
-          const list = loadAnticipated();
-          if (list.some(a => a.title.toLowerCase() === m.title.toLowerCase())) return;
-          removeFromOtherLists(m.title);
-          list.push({ title: m.title, year: m.year, poster: m.poster, release_date: m.release_date, addedAt: Date.now() });
-          saveAnticipated(list);
+    list.forEach(movie => {
+      const days = daysUntil(movie.release_date);
+      const released = days !== null && days <= 0;
+      const card = CardComponent.renderCard(movie, {
+        view: 'anticipated',
+        onRemove: () => {
+          const prev = loadAnticipated();
+          saveAnticipated(prev.filter(m => m.title !== movie.title));
           invalidateTabCounts();
           renderAnticipated();
           renderGridNav();
-        });
-        sugWrap.appendChild(card);
+        },
       });
-
-      const loadMoreBtn = document.createElement('button');
-      loadMoreBtn.className = 'anticipated-load-more';
-      loadMoreBtn.textContent = 'Show more';
-      loadMoreBtn.addEventListener('click', () => fetchUpcomingSuggestions(_upcomingPage + 1));
-      sugWrap.appendChild(loadMoreBtn);
-
-      g.appendChild(sugWrap);
-    }
-    markClean('anticipated');
-    return;
+      const countdown = document.createElement('div');
+      countdown.className = 'anticipated-countdown' + (released ? ' anticipated-countdown--released' : '');
+      countdown.textContent = released ? 'Out now'
+        : days === 0 ? 'Premieres today!'
+        : days === 1 ? 'Tomorrow'
+        : `In ${days} days`;
+      card.appendChild(countdown);
+      if (released) card.classList.add('anticipated-card--released');
+      g.appendChild(card);
+    });
   }
 
-  // Add film button row
-  const addRow = document.createElement('div');
-  addRow.className = 'grid-sort-row';
-  const addBtn = document.createElement('button');
-  addBtn.className = 'grid-add-btn';
-  addBtn.innerHTML = '+ Add film';
-  addBtn.addEventListener('click', () => openSearchModal('anticipated'));
-  addRow.appendChild(addBtn);
-  g.appendChild(addRow);
+  // ── Coming soon suggestions — always 5 slots ─────────────────────────────
+  const _allUserTitles = new Set([
+    ...list.map(a => a.title.toLowerCase()),
+    ...loadBanned().map(m => m.title.toLowerCase()),
+    ...loadMeh().map(m => m.title.toLowerCase()),
+    ...movies.map(m => m.title.toLowerCase()),
+    ...loadWatchlist().map(m => m.title.toLowerCase()),
+    ...loadMaybe().map(m => m.title.toLowerCase()),
+  ]);
+  const visible = _upcomingSuggestions.filter(m => !_allUserTitles.has(m.title.toLowerCase()));
+  const toShow  = visible.slice(0, 5);
 
-  list.forEach(movie => {
-    const days = daysUntil(movie.release_date);
-    const released = days !== null && days <= 0;
+  // Fetch more if we can't fill 5 slots yet
+  if (_upcomingPage === 0 && !_upcomingLoading) {
+    fetchUpcomingSuggestions(1);
+  } else if (toShow.length < 5 && !_upcomingLoading && _upcomingPage < _upcomingTotalPages) {
+    fetchUpcomingSuggestions(_upcomingPage + 1);
+  }
 
-    const card = CardComponent.renderCard(movie, {
+  const sugRow = document.createElement('div');
+  sugRow.className = 'anticipated-suggestions-row';
+
+  const sugLabel = document.createElement('p');
+  sugLabel.className = 'anticipated-suggestions-label';
+  sugLabel.textContent = 'Coming soon';
+  sugRow.appendChild(sugLabel);
+
+  const sugGrid = document.createElement('div');
+  sugGrid.className = 'anticipated-suggestions-grid';
+
+  toShow.forEach(m => {
+    const addToAnticipated = () => {
+      const current = loadAnticipated();
+      if (current.some(a => a.title.toLowerCase() === m.title.toLowerCase())) return;
+      removeFromOtherLists(m.title);
+      current.push({ title: m.title, year: m.year, poster: m.poster, release_date: m.release_date, addedAt: Date.now() });
+      saveAnticipated(current);
+      invalidateTabCounts();
+      renderAnticipated();
+      renderGridNav();
+    };
+
+    const card = CardComponent.renderCard(m, {
       view: 'anticipated',
       onRemove: () => {
-        const prev = loadAnticipated();
-        saveAnticipated(prev.filter(m => m.title !== movie.title));
-        invalidateTabCounts();
+        const banned = loadBanned();
+        if (!banned.find(b => b.title.toLowerCase() === m.title.toLowerCase())) {
+          banned.push({ title: m.title, year: m.year, poster: m.poster });
+          saveBanned(banned);
+          invalidateTabCounts();
+        }
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
         renderAnticipated();
         renderGridNav();
       },
     });
+    card.classList.add('anticipated-suggestion-card');
+    card.setAttribute('tabindex', '0');
 
-    // Inject countdown badge
-    const countdown = document.createElement('div');
-    countdown.className = 'anticipated-countdown' + (released ? ' anticipated-countdown--released' : '');
-    countdown.textContent = released
-      ? 'Out now'
-      : days === 0 ? 'Premieres today!'
-      : days === 1 ? 'Tomorrow'
-      : `In ${days} days`;
-    card.appendChild(countdown);
-    if (released) card.classList.add('anticipated-card--released');
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.card-remove-btn, .anticipated-suggestion-add-btn')) return;
+      openMovieModal(m, toShow, { anticipatedMode: true });
+    });
 
-    g.appendChild(card);
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        card.querySelector('.card-remove-btn')?.click();
+      }
+    });
+
+    const badge = document.createElement('div');
+    badge.className = 'anticipated-countdown';
+    badge.textContent = formatReleaseDate(m.release_date);
+    card.appendChild(badge);
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'anticipated-suggestion-add-btn';
+    addBtn.textContent = '+ Add';
+    addBtn.addEventListener('click', (e) => { e.stopPropagation(); addToAnticipated(); });
+    card.appendChild(addBtn);
+
+    sugGrid.appendChild(card);
   });
+
+  // Fill remaining slots with skeletons while loading
+  const _emptySlots = 5 - toShow.length;
+  for (let i = 0; i < _emptySlots; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'anticipated-suggestion-slot' + (_upcomingLoading || _upcomingPage === 0 ? ' anticipated-suggestion-slot--loading' : '');
+    sugGrid.appendChild(slot);
+  }
+
+  sugRow.appendChild(sugGrid);
+  g.appendChild(sugRow);
 
   applyGrain();
   markClean('anticipated');
@@ -2141,10 +2247,28 @@ let grainEnabled = _g.grainEnabled ?? true;
 let grainLevel   = _g.grainLevel   ?? 0.04;
 let darkBoost    = _g.darkBoost    ?? 100;
 
+// ── URL routing ───────────────────────────────────────────────────────────────
+window.addEventListener('popstate', () => {
+  const { view, sort } = readViewUrl();
+  if (view && VIEWS.includes(view)) {
+    if (sort) setSortMode(view, sort);
+    setGridView(view, { pushUrl: false });
+  }
+});
+
 // Render immediately from localStorage, then re-render if Supabase sync brings newer data.
 (async function init() {
   loadMovies();
+
+  // Restore view + sort from URL if present
+  const { view: urlView, sort: urlSort } = readViewUrl();
+  if (urlView && VIEWS.includes(urlView)) {
+    if (urlSort) setSortMode(urlView, urlSort);
+    gridView = urlView;
+  }
+
   render(movies);
+  setGridView(gridView);
   renderGridNav();
   initRecHeading();
   fetchRecommendation();
@@ -2153,13 +2277,20 @@ let darkBoost    = _g.darkBoost    ?? 100;
   const changed = await supabaseHydrate();
   if (changed) {
     loadMovies();
-    setGridView(currentView);
+    setGridView(gridView);
     renderGridNav();
   }
 })();
 
 
-setInterval(() => saveSnapshot('Auto-save · ' + new Date().toLocaleString()), 10 * 60 * 1000);
+const AUTOSAVE_LOCK_KEY = 'thecollection_autosave_ts';
+const AUTOSAVE_INTERVAL = 10 * 60 * 1000;
+setInterval(() => {
+  const last = parseInt(localStorage.getItem(AUTOSAVE_LOCK_KEY) || '0');
+  if (Date.now() - last < AUTOSAVE_INTERVAL - 5000) return; // another tab just saved
+  localStorage.setItem(AUTOSAVE_LOCK_KEY, String(Date.now()));
+  saveSnapshot('Auto-save · ' + new Date().toLocaleString());
+}, AUTOSAVE_INTERVAL);
 
 updateSortable('collection');
 
@@ -2179,13 +2310,15 @@ const modalDetailsCache = new Map();
 let modalCurrentKey = null;
 let modalList  = [];
 let modalIndex = 0;
+let modalAnticipatedMode = false;
 
-function openMovieModal(movie, list = null) {
+function openMovieModal(movie, list = null, opts = {}) {
   if (list) {
     modalList  = list;
     modalIndex = list.findIndex(m => m.title === movie.title);
     if (modalIndex === -1) modalIndex = 0;
   }
+  if ('anticipatedMode' in opts) modalAnticipatedMode = opts.anticipatedMode;
   const counter = document.getElementById('mm-nav-counter');
   if (counter) counter.textContent = modalList.length > 1 ? `${modalIndex + 1} / ${modalList.length}` : '';
   document.getElementById('mm-nav-prev').style.visibility = modalList.length > 1 ? '' : 'hidden';
@@ -2250,7 +2383,7 @@ function openMovieModal(movie, list = null) {
         <div class="mm-loading-bar mm-skel-rating"></div>
         <div class="mm-loading-bar mm-skel-rating"></div>
       </div>
-      <div class="mm-loading-bar mm-skel-watch-btn"></div>
+      ${modalAnticipatedMode ? '' : '<div class="mm-loading-bar mm-skel-watch-btn"></div>'}
     </div>
     <div class="mm-info">
       <div class="mm-info-header mm-info-header--no-shadow">
@@ -2258,12 +2391,55 @@ function openMovieModal(movie, list = null) {
         <div class="mm-meta">${[movie.director, movie.year].filter(Boolean).join(' · ')}</div>
         <div class="mm-tabs mm-tabs-skel" id="mm-skel-tabs">
           <button class="mm-tab mm-tab-active" data-skel="details">Details</button>
-          <button class="mm-tab" data-skel="session">Session</button>
-          <button class="mm-tab" data-skel="wtw">Where to watch</button>
+          ${modalAnticipatedMode ? '' : `<button class="mm-tab" data-skel="session">Session</button><button class="mm-tab" data-skel="wtw">Where to watch</button>`}
         </div>
       </div>
       <div class="mm-tab-content" id="mm-skel-content">${SKEL_DETAILS}</div>
     </div>`;
+
+  // In anticipated mode, add action buttons immediately to the skeleton poster column
+  if (modalAnticipatedMode) {
+    const skelPosterCol = body.querySelector('.mm-poster-col');
+    const makeAction = (cls, label, handler) => {
+      const btn = document.createElement('button');
+      btn.className = cls;
+      btn.textContent = label;
+      btn.addEventListener('click', handler);
+      return btn;
+    };
+    skelPosterCol.append(
+      makeAction('mm-watch-btn mm-anticipate-btn', 'Anticipate', () => {
+        const current = loadAnticipated();
+        if (!current.some(a => a.title.toLowerCase() === movie.title.toLowerCase())) {
+          removeFromOtherLists(movie.title);
+          current.push({ title: movie.title, year: movie.year, poster: movie.poster, release_date: movie.release_date || null, addedAt: Date.now() });
+          saveAnticipated(current); invalidateTabCounts(); renderGridNav();
+        }
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== movie.title);
+        closeMovieModal(); renderAnticipated();
+      }),
+      makeAction('mm-action-btn mm-action-btn--meh', 'Meh', () => {
+        const list = loadMeh();
+        if (!list.find(x => x.title === movie.title)) {
+          removeFromOtherLists(movie.title);
+          list.push({ title: movie.title, year: movie.year, poster: movie.poster });
+          saveMeh(list); invalidateTabCounts(); renderGridNav();
+        }
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== movie.title);
+        closeMovieModal(); renderAnticipated();
+      }),
+      makeAction('mm-action-btn mm-action-btn--ban', "Don't recommend", () => {
+        const list = loadBanned();
+        if (!list.find(x => x.title === movie.title)) {
+          removeFromOtherLists(movie.title);
+          list.push({ title: movie.title, year: movie.year, poster: movie.poster });
+          saveBanned(list); invalidateTabCounts(); renderGridNav();
+        }
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== movie.title);
+        closeMovieModal(); renderAnticipated();
+      }),
+    );
+  }
 
   // Lock min-height to the Details skeleton's rendered height so other tabs don't shift the modal
   const skelContent = body.querySelector('#mm-skel-content');
@@ -2288,7 +2464,7 @@ function openMovieModal(movie, list = null) {
   }
 
   if (modalDetailsCache.has(cacheKey)) {
-    renderModalDetails(body, movie, modalDetailsCache.get(cacheKey), getActiveSkelTab());
+    renderModalDetails(body, movie, modalDetailsCache.get(cacheKey), getActiveSkelTab(), modalAnticipatedMode);
     return;
   }
 
@@ -2296,7 +2472,7 @@ function openMovieModal(movie, list = null) {
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(data => {
       modalDetailsCache.set(cacheKey, data);
-      if (modalCurrentKey === cacheKey) renderModalDetails(body, movie, data, getActiveSkelTab());
+      if (modalCurrentKey === cacheKey) renderModalDetails(body, movie, data, getActiveSkelTab(), modalAnticipatedMode);
     })
     .catch(() => {});
 }
@@ -2326,9 +2502,9 @@ function mmGetActiveSession(title) {
   return data;
 }
 
-function renderModalDetails(body, movie, data, initialTab = 'details') {
-  // Backfill director into storage if the API returned one and we didn't have it
-  if (!movie.director && data.director) {
+function renderModalDetails(body, movie, data, initialTab = 'details', anticipatedMode = false) {
+  // Backfill director into storage — always prefer fresh API data over stale stored value
+  if (data.director && data.director !== movie.director) {
     const listKeys = ['movies', 'watchlist', 'maybe', 'meh', 'banned'];
     const loaders  = { movies: loadMovies, watchlist: loadWatchlist, maybe: loadMaybe, meh: loadMeh, banned: loadBanned };
     const savers   = { movies: saveMovies, watchlist: saveWatchlist, maybe: saveMaybe, meh: saveMeh, banned: saveBanned };
@@ -2345,6 +2521,46 @@ function renderModalDetails(body, movie, data, initialTab = 'details') {
 
   ModalComponent.renderModal(body, movie, data, {
     initialTab,
+    anticipatedMode,
+    onAnticipate: (m) => {
+      const current = loadAnticipated();
+      if (!current.some(a => a.title.toLowerCase() === m.title.toLowerCase())) {
+        removeFromOtherLists(m.title);
+        current.push({ title: m.title, year: m.year, poster: m.poster, release_date: m.release_date || null, addedAt: Date.now() });
+        saveAnticipated(current);
+        invalidateTabCounts();
+        renderGridNav();
+      }
+      _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+      closeMovieModal();
+      renderAnticipated();
+    },
+    onMeh: (m) => {
+      const list = loadMeh();
+      if (!list.find(x => x.title === m.title)) {
+        removeFromOtherLists(m.title);
+        list.push({ title: m.title, year: m.year, poster: m.poster });
+        saveMeh(list);
+        invalidateTabCounts();
+        renderGridNav();
+      }
+      _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+      closeMovieModal();
+      renderAnticipated();
+    },
+    onBan: (m) => {
+      const list = loadBanned();
+      if (!list.find(x => x.title === m.title)) {
+        removeFromOtherLists(m.title);
+        list.push({ title: m.title, year: m.year, poster: m.poster });
+        saveBanned(list);
+        invalidateTabCounts();
+        renderGridNav();
+      }
+      _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+      closeMovieModal();
+      renderAnticipated();
+    },
     onWatchTonight: (m) => watchTonight(m, gridView),
     getActiveSessions: () => loadNowWatching(),
     getPastSessions: () => {
@@ -2394,6 +2610,7 @@ function renderModalDetails(body, movie, data, initialTab = 'details') {
 function closeMovieModal() {
   document.getElementById('movie-modal-backdrop').style.display = 'none';
   document.body.style.overflow = '';
+  modalAnticipatedMode = false;
 }
 
 function modalNavigate(dir) {

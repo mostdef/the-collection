@@ -521,6 +521,11 @@ const ModalComponent = (() => {
       getCountry = () => 'US',
       onCountryChange = null,
       onFetchProviders = null,
+      // Anticipated mode: replaces Watch Tonight with Anticipate/Meh/Don't Recommend actions
+      anticipatedMode = false,
+      onAnticipate = null,
+      onMeh = null,
+      onBan = null,
     } = options;
 
     // In-memory session state — persists across tab switches for this modal's lifetime
@@ -566,13 +571,32 @@ const ModalComponent = (() => {
       posterCol.appendChild(ratings);
     }
 
-    const watchBtn = document.createElement('button');
-    watchBtn.className = 'mm-watch-btn';
-    watchBtn.textContent = 'Watch Tonight';
-    watchBtn.addEventListener('click', () => {
-      if (typeof onWatchTonight === 'function') onWatchTonight(movie);
-    });
-    posterCol.appendChild(watchBtn);
+    if (anticipatedMode) {
+      const anticipateBtn = document.createElement('button');
+      anticipateBtn.className = 'mm-watch-btn mm-anticipate-btn';
+      anticipateBtn.textContent = 'Anticipate';
+      anticipateBtn.addEventListener('click', () => { if (typeof onAnticipate === 'function') onAnticipate(movie); });
+
+      const mehBtn = document.createElement('button');
+      mehBtn.className = 'mm-action-btn mm-action-btn--meh';
+      mehBtn.textContent = 'Meh';
+      mehBtn.addEventListener('click', () => { if (typeof onMeh === 'function') onMeh(movie); });
+
+      const banBtn = document.createElement('button');
+      banBtn.className = 'mm-action-btn mm-action-btn--ban';
+      banBtn.textContent = "Don't recommend";
+      banBtn.addEventListener('click', () => { if (typeof onBan === 'function') onBan(movie); });
+
+      posterCol.append(anticipateBtn, mehBtn, banBtn);
+    } else {
+      const watchBtn = document.createElement('button');
+      watchBtn.className = 'mm-watch-btn';
+      watchBtn.textContent = 'Watch Tonight';
+      watchBtn.addEventListener('click', () => {
+        if (typeof onWatchTonight === 'function') onWatchTonight(movie);
+      });
+      posterCol.appendChild(watchBtn);
+    }
 
     // ── Info column ────────────────────────────────────────────────────────────
     const info = document.createElement('div');
@@ -584,10 +608,21 @@ const ModalComponent = (() => {
 
     const meta = document.createElement('div');
     meta.className = 'mm-meta';
-    const resolvedDirector = movie.director || data.director || '';
-    const parts = [resolvedDirector, movie.year];
-    if (data.runtime) parts.push(`${data.runtime} min`);
-    meta.textContent = parts.filter(Boolean).join(' · ');
+    const resolvedDirector = data.director || movie.director || '';
+    if (resolvedDirector) {
+      const dirLink = document.createElement('a');
+      dirLink.className = 'mm-director-link';
+      dirLink.textContent = resolvedDirector;
+      dirLink.href = data.director_wiki || `https://en.wikipedia.org/wiki/${encodeURIComponent(resolvedDirector.replace(/ /g, '_'))}`;
+      dirLink.target = '_blank';
+      dirLink.rel = 'noopener noreferrer';
+      meta.appendChild(dirLink);
+    }
+    const metaParts = [movie.year, data.runtime ? `${data.runtime} min` : null].filter(Boolean);
+    if (metaParts.length) {
+      const sep = document.createTextNode((resolvedDirector ? ' · ' : '') + metaParts.join(' · '));
+      meta.appendChild(sep);
+    }
 
     const sessions = mmGetSessions(movie.title, resolvedOptions);
     const activeSession = mmGetActiveSession(movie.title, resolvedOptions);
@@ -623,7 +658,11 @@ const ModalComponent = (() => {
     wtwTab.className = 'mm-tab';
     wtwTab.textContent = 'Where to watch';
 
-    tabBar.append(detailsTab, sessionTab, wtwTab);
+    if (anticipatedMode) {
+      tabBar.append(detailsTab);
+    } else {
+      tabBar.append(detailsTab, sessionTab, wtwTab);
+    }
     infoHeader.appendChild(tabBar);
     info.appendChild(infoHeader);
 

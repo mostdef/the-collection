@@ -50,9 +50,10 @@ module.exports = async function handler(req, res) {
     } catch {}
   }
 
-  // Top cast (up to 8) + key crew people IDs
+  // Top cast (up to 8) + director + key crew people IDs
   const crew = credits.crew || [];
   const pick = (jobs) => crew.find(p => jobs.includes(p.job)) || null;
+  const directorPerson = pick(['Director']);
   const keyCrewPeople = [
     { role: 'Cinematography', person: pick(['Director of Photography', 'Cinematography']) },
     { role: 'Original Music', person: pick(['Original Music Composer', 'Music', 'Composer']) },
@@ -74,6 +75,7 @@ module.exports = async function handler(req, res) {
 
   const allPeople = [
     ...topCast.map(p => p.id),
+    ...(directorPerson ? [directorPerson.id] : []),
     ...keyCrewPeople.map(c => c.person.id),
   ];
   const wikidataIds = await Promise.all(allPeople.map(fetchWikidataId));
@@ -108,10 +110,15 @@ module.exports = async function handler(req, res) {
     wiki:       wikiUrl(wikidataIds[i], p.name),
   }));
 
+  const directorWikiOffset = topCast.length;
+  const directorWiki = directorPerson
+    ? wikiUrl(wikidataIds[directorWikiOffset], directorPerson.name)
+    : null;
+
   const keyCrew = keyCrewPeople.map(({ role, person }, i) => ({
     role,
     name: person.name,
-    wiki: wikiUrl(wikidataIds[topCast.length + i], person.name),
+    wiki: wikiUrl(wikidataIds[topCast.length + (directorPerson ? 1 : 0) + i], person.name),
   }));
 
   res.json({
@@ -122,8 +129,10 @@ module.exports = async function handler(req, res) {
     genres:       (details.genres || []).map(g => g.name),
     poster:       search.results[0].poster_path ? `${TMDB_IMG}w500${search.results[0].poster_path}` : null,
     imdb_id:      imdbId || null,
-    imdb_rating:  imdbRating,
-    rt_score:     rtScore,
+    imdb_rating:   imdbRating,
+    rt_score:      rtScore,
+    director:      directorPerson?.name || null,
+    director_wiki: directorWiki,
     cast,
     keyCrew,
   });

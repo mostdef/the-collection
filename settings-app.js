@@ -217,6 +217,8 @@ cardRatingsToggle.addEventListener('change', () => {
 });
 
 document.getElementById('save-snapshot-btn').addEventListener('click', async function () {
+  if (this.dataset.saving) return;
+  this.dataset.saving = '1';
   this.textContent = 'Saving…';
   this.disabled = true;
   const snap = {
@@ -242,13 +244,15 @@ document.getElementById('save-snapshot-btn').addEventListener('click', async fun
     });
     if (res.ok) {
       this.textContent = 'Saved ✓';
-      setTimeout(() => loadServerSnapshots(), 400);
+      await loadServerSnapshots();
     } else {
       this.textContent = 'Error — try again';
       this.disabled = false;
+      delete this.dataset.saving;
     }
   } catch {
     this.textContent = 'Error — try again';
     this.disabled = false;
+    delete this.dataset.saving;
   }
 });
