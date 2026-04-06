@@ -1274,6 +1274,9 @@ const diary = {
   panel:             document.getElementById('watch-diary-panel'),
   toggleBtn:         document.getElementById('watch-diary-toggle'),
   closeBtn:          document.getElementById('watch-diary-close'),
+  confirmBackdrop:   document.getElementById('watch-diary-confirm-backdrop'),
+  confirmCancel:     document.getElementById('watch-diary-confirm-cancel'),
+  confirmDelete:     document.getElementById('watch-diary-confirm-delete'),
   tabs:              document.getElementById('watch-diary-tabs'),
   toolbar:           document.getElementById('watch-diary-toolbar'),
   tabLog:            document.getElementById('watch-diary-tab-log'),
@@ -1287,8 +1290,12 @@ const diary = {
   searchResults:     document.getElementById('nww-diary-search-results'),
   seasonField:       document.getElementById('nww-diary-season-field'),
   seasonInput:       document.getElementById('nww-diary-season-input'),
-  episodeField:      document.getElementById('nww-diary-episode-field'),
-  episodeInput:      document.getElementById('nww-diary-episode-input'),
+  singleEpisodeField: document.getElementById('nww-diary-single-episode-field'),
+  singleEpisodeInput: document.getElementById('nww-diary-single-episode-input'),
+  episodeFromField:  document.getElementById('nww-diary-episode-from-field'),
+  episodeFromInput:  document.getElementById('nww-diary-episode-from-input'),
+  episodeToField:    document.getElementById('nww-diary-episode-to-field'),
+  episodeToInput:    document.getElementById('nww-diary-episode-to-input'),
   statusInput:       document.getElementById('nww-diary-status-input'),
   watchedAtInput:    document.getElementById('nww-diary-watched-at-input'),
   timestampInput:    document.getElementById('nww-diary-timestamp-input'),
@@ -1304,6 +1311,7 @@ const diary = {
   searchDebounce: null,
   tvRequestToken: 0,
   reenrichInFlight: false,
+  pendingDeleteId: null,
 };
 
 // ── Supabase sync ─────────────────────────────────────────────────────────────
@@ -1436,9 +1444,13 @@ function saveWatchLog(entries) {
 
 function sortWatchLog(entries) {
   return entries.slice().sort((a, b) => {
-    const aTs = Date.parse(a.updatedAt || a.watchedAt || a.startedAt || 0) || 0;
-    const bTs = Date.parse(b.updatedAt || b.watchedAt || b.startedAt || 0) || 0;
-    return bTs - aTs;
+    const aWatchTs = Date.parse(a.watchedAt || a.startedAt || a.createdAt || 0) || 0;
+    const bWatchTs = Date.parse(b.watchedAt || b.startedAt || b.createdAt || 0) || 0;
+    if (bWatchTs !== aWatchTs) return bWatchTs - aWatchTs;
+
+    const aCreatedTs = Date.parse(a.startedAt || a.createdAt || a.updatedAt || 0) || 0;
+    const bCreatedTs = Date.parse(b.startedAt || b.createdAt || b.updatedAt || 0) || 0;
+    return bCreatedTs - aCreatedTs;
   });
 }
 
@@ -2017,6 +2029,17 @@ function setWatchDiaryOpen(open) {
   diary.layout?.classList.toggle('watch-diary-open', open);
   diary.panel?.setAttribute('aria-hidden', open ? 'false' : 'true');
   diary.toggleBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
+function closeWatchDiaryDeleteConfirm() {
+  diary.pendingDeleteId = null;
+  if (diary.confirmBackdrop) diary.confirmBackdrop.hidden = true;
+}
+
+function openWatchDiaryDeleteConfirm(id) {
+  diary.pendingDeleteId = id;
+  if (diary.confirmBackdrop) diary.confirmBackdrop.hidden = false;
+  diary.confirmDelete?.focus();
 }
 
 function closeDiarySearchResults() {
@@ -3081,13 +3104,33 @@ diary.seasonInput?.addEventListener('change', () => {
   const selected = diary.selectedResult;
   const seasonNumber = parseInt(diary.seasonInput.value, 10) || null;
   if (!selected?.tmdb_id || !seasonNumber) {
-    if (diary.episodeInput) {
-      diary.episodeInput.innerHTML = '<option value="">Choose episode</option>';
-      diary.episodeInput.disabled = true;
+    if (diary.episodeFromInput) {
+      diary.episodeFromInput.innerHTML = '<option value="">Choose start episode</option>';
+      diary.episodeFromInput.disabled = true;
+    }
+    if (diary.episodeToInput) {
+      diary.episodeToInput.innerHTML = '<option value="">Choose end episode</option>';
+      diary.episodeToInput.disabled = true;
     }
     return;
   }
   loadDiaryTvEpisodes(selected.tmdb_id, seasonNumber);
+});
+
+diary.singleEpisodeInput?.addEventListener('change', () => {
+  if (!diary.singleEpisodeInput?.checked) {
+    setDiaryEpisodeRangeVisibility();
+    return;
+  }
+  if (diary.episodeFromInput?.value && diary.episodeToInput) {
+    diary.episodeToInput.value = diary.episodeFromInput.value;
+  }
+  setDiaryEpisodeRangeVisibility();
+});
+
+diary.episodeFromInput?.addEventListener('change', () => {
+  if (!diary.singleEpisodeInput?.checked || !diary.episodeToInput || !diary.episodeFromInput.value) return;
+  diary.episodeToInput.value = diary.episodeFromInput.value;
 });
 
 
@@ -3279,7 +3322,10 @@ function openMovieModal(movie, list = null, opts = {}) {
     return;
   }
 
-  fetch(`/api/movie-details?title=${encodeURIComponent(movie.title)}&year=${movie.year}`)
+  const detailsParams = new URLSearchParams({ title: movie.title });
+  if (movie.year) detailsParams.set('year', movie.year);
+  if (movie.tmdb_id) detailsParams.set('tmdb_id', movie.tmdb_id);
+  fetch(`/api/movie-details?${detailsParams}`)
     .then(r => r.ok ? r.json() : Promise.reject())
     .then(data => {
       modalDetailsCache.set(cacheKey, data);
@@ -4547,15 +4593,25 @@ diary.form?.addEventListener('submit', (e) => {
     ? diary.selectedResult
     : null;
   const seasonNumber = parseInt(diary.seasonInput?.value || '', 10) || null;
-  const episodeNumber = parseInt(diary.episodeInput?.value || '', 10) || null;
-  const episodeTitle = episodeNumber
-    ? diary.episodeInput?.selectedOptions?.[0]?.dataset?.episodeTitle || ''
+  const singleEpisode = !!diary.singleEpisodeInput?.checked;
+  const episodeStartNumber = parseInt(diary.episodeFromInput?.value || '', 10) || null;
+  const episodeEndNumber = parseInt((singleEpisode ? diary.episodeFromInput?.value : diary.episodeToInput?.value) || '', 10) || null;
+  const episodeTitle = singleEpisode && episodeStartNumber
+    ? diary.episodeFromInput?.selectedOptions?.[0]?.dataset?.episodeTitle || ''
     : '';
   const active = loadNowWatching();
   const canUpdateActive = active && active.diaryEntryId && active.title === title;
 
-  if (selected?.media_type === 'tv' && seasonNumber && !episodeNumber) {
-    diary.episodeInput?.focus();
+  if (selected?.media_type === 'tv' && seasonNumber && !episodeStartNumber) {
+    diary.episodeFromInput?.focus();
+    return;
+  }
+  if (selected?.media_type === 'tv' && !singleEpisode && episodeStartNumber && !episodeEndNumber) {
+    diary.episodeToInput?.focus();
+    return;
+  }
+  if (selected?.media_type === 'tv' && episodeStartNumber && episodeEndNumber && episodeEndNumber < episodeStartNumber) {
+    diary.episodeToInput?.focus();
     return;
   }
 
@@ -4579,17 +4635,20 @@ diary.form?.addEventListener('submit', (e) => {
 
   upsertWatchLogEntry({
     id: createWatchLogId(),
-    title: selected?.media_type === 'tv' ? (episodeTitle || title) : title,
+    title: selected?.media_type === 'tv' && singleEpisode ? (episodeTitle || title) : title,
     seriesTitle: selected?.media_type === 'tv' ? title : null,
     year: selected?.year || null,
     poster: selected?.poster || null,
     mediaType: selected?.media_type === 'tv'
-      ? (episodeNumber ? 'tv_episode' : 'tv')
+      ? (singleEpisode ? 'tv_episode' : 'tv')
       : 'movie',
     tmdbId: selected?.tmdb_id || null,
     seasonNumber: selected?.media_type === 'tv' ? seasonNumber : null,
-    episodeNumber: selected?.media_type === 'tv' ? episodeNumber : null,
-    episodeTitle: selected?.media_type === 'tv' ? (episodeTitle || null) : null,
+    episodeNumber: selected?.media_type === 'tv' && singleEpisode ? episodeStartNumber : null,
+    episodeStartNumber: selected?.media_type === 'tv' ? episodeStartNumber : null,
+    episodeEndNumber: selected?.media_type === 'tv' ? episodeEndNumber : null,
+    singleEpisode: selected?.media_type === 'tv' ? singleEpisode : false,
+    episodeTitle: selected?.media_type === 'tv' && singleEpisode ? (episodeTitle || null) : null,
     watchedAt,
     startedAt: watchedAt,
     status,
@@ -4606,14 +4665,7 @@ diary.entries?.addEventListener('click', (e) => {
   if (!deleteBtn) return;
   const id = deleteBtn.getAttribute('data-watch-log-delete');
   if (!id) return;
-  deleteWatchLogEntry(id);
-
-  const active = loadNowWatching();
-  if (active?.diaryEntryId === id) {
-    delete active.diaryEntryId;
-    saveNowWatching(active);
-    populateWatchDiaryFormFromSession(active);
-  }
+  openWatchDiaryDeleteConfirm(id);
 });
 
 diary.journalList?.addEventListener('click', (e) => {
@@ -4626,10 +4678,41 @@ diary.journalList?.addEventListener('click', (e) => {
   deleteTasteSignal(timestamp);
 });
 
+diary.confirmCancel?.addEventListener('click', () => {
+  closeWatchDiaryDeleteConfirm();
+});
+
+diary.confirmBackdrop?.addEventListener('click', (e) => {
+  if (e.target === diary.confirmBackdrop) closeWatchDiaryDeleteConfirm();
+});
+
+diary.confirmDelete?.addEventListener('click', () => {
+  const id = diary.pendingDeleteId;
+  if (!id) {
+    closeWatchDiaryDeleteConfirm();
+    return;
+  }
+  deleteWatchLogEntry(id);
+
+  const active = loadNowWatching();
+  if (active?.diaryEntryId === id) {
+    delete active.diaryEntryId;
+    saveNowWatching(active);
+    populateWatchDiaryFormFromSession(active);
+  }
+  closeWatchDiaryDeleteConfirm();
+});
+
 document.addEventListener('click', (e) => {
   if (!diary.searchResults || !diary.titleInput) return;
   if (!diary.searchResults.contains(e.target) && e.target !== diary.titleInput) {
     closeDiarySearchResults();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !diary.confirmBackdrop?.hidden) {
+    closeWatchDiaryDeleteConfirm();
   }
 });
 

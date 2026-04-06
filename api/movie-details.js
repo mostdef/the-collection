@@ -13,18 +13,30 @@ module.exports = async function handler(req, res) {
     if (!user) return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const { title, year } = req.query;
-  if (!title) return res.status(400).end();
+  const { title, year, tmdb_id } = req.query;
+  if (!title && !tmdb_id) return res.status(400).end();
 
   const headers = { Authorization: `Bearer ${process.env.TMDB_TOKEN}` };
 
-  // Search
-  const searchRes = await fetch(
-    `${TMDB_BASE}/search/movie?query=${encodeURIComponent(title)}&year=${year || ''}&language=en-US`,
-    { headers }
-  );
-  const search = await searchRes.json();
-  const tmdbId = search.results?.[0]?.id;
+  // Resolve TMDB ID — use direct ID when provided, otherwise search by title
+  let tmdbId = tmdb_id ? parseInt(tmdb_id, 10) : null;
+  if (!tmdbId) {
+    const searchRes = await fetch(
+      `${TMDB_BASE}/search/movie?query=${encodeURIComponent(title)}&year=${year || ''}&language=en-US`,
+      { headers }
+    );
+    const search = await searchRes.json();
+    tmdbId = search.results?.[0]?.id;
+    // Fallback: retry without year constraint (handles non-English or mismatched titles)
+    if (!tmdbId && year) {
+      const retryRes = await fetch(
+        `${TMDB_BASE}/search/movie?query=${encodeURIComponent(title)}&language=en-US`,
+        { headers }
+      );
+      const retry = await retryRes.json();
+      tmdbId = retry.results?.[0]?.id;
+    }
+  }
   if (!tmdbId) return res.status(404).json({ error: 'not_found' });
 
   // Fetch details + credits in parallel
