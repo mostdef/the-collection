@@ -1284,6 +1284,8 @@ const diary = {
   reenrichBtn:       document.getElementById('watch-journal-reenrich-btn'),
   logPanel:          document.getElementById('watch-diary-log-panel'),
   journalPanel:      document.getElementById('watch-diary-journal-panel'),
+  composer:          document.getElementById('nww-diary-composer'),
+  composerToggle:    document.getElementById('nww-diary-composer-toggle'),
   form:              document.getElementById('nww-diary-form'),
   formGrid:          document.querySelector('#nww-diary-form .nww-diary-form-grid'),
   titleInput:        document.getElementById('nww-diary-title-input'),
@@ -1312,6 +1314,7 @@ const diary = {
   tvRequestToken: 0,
   reenrichInFlight: false,
   pendingDeleteId: null,
+  composerOpen: false,
 };
 
 // ── Supabase sync ─────────────────────────────────────────────────────────────
@@ -1827,16 +1830,24 @@ function setDiaryTimestampFieldVisibility() {
   if (!showTimestamp) diary.timestampInput.value = '';
 }
 
+function setWatchDiaryComposerOpen(open) {
+  diary.composerOpen = open;
+  if (diary.composer) diary.composer.hidden = !open;
+  diary.composerToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (diary.composerToggle) diary.composerToggle.textContent = open ? 'Close record' : 'Add a record';
+}
+
 function resetWatchDiaryForm() {
   if (!diary.form) return;
   diary.form.reset();
   if (diary.watchedAtInput) diary.watchedAtInput.value = formatDiaryDateInput(new Date().toISOString());
   if (diary.statusInput) diary.statusInput.value = 'finished';
-  if (diary.submit) diary.submit.textContent = 'Add entry';
+  if (diary.submit) diary.submit.textContent = 'Save entry';
   diary.selectedResult = null;
   resetDiarySeriesFields();
   closeDiarySearchResults();
   setDiaryTimestampFieldVisibility();
+  setWatchDiaryComposerOpen(false);
 }
 
 function populateWatchDiaryFormFromSession(data) {
@@ -1857,6 +1868,7 @@ function populateWatchDiaryFormFromSession(data) {
   resetDiarySeriesFields();
   closeDiarySearchResults();
   setDiaryTimestampFieldVisibility();
+  setWatchDiaryComposerOpen(true);
 }
 
 function renderWatchDiary() {
@@ -3062,6 +3074,11 @@ diary.tabLog?.addEventListener('click', () => {
 
 diary.tabJournal?.addEventListener('click', () => {
   setWatchDiaryTab('journal');
+});
+
+diary.composerToggle?.addEventListener('click', () => {
+  setWatchDiaryComposerOpen(!diary.composerOpen);
+  if (diary.composerOpen) diary.titleInput?.focus();
 });
 
 diary.reenrichBtn?.addEventListener('click', () => {

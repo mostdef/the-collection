@@ -58,6 +58,10 @@
       </div>
 
       <div class="watch-diary-panel-view is-active" id="watch-diary-log-panel" role="tabpanel" aria-labelledby="watch-diary-tab-log">
+      <div class="nww-diary-composer-header">
+        <button class="nww-diary-composer-toggle" id="nww-diary-composer-toggle" type="button" aria-expanded="false" aria-controls="nww-diary-composer">Add a record</button>
+      </div>
+      <div class="nww-diary-composer" id="nww-diary-composer" hidden>
       <form class="nww-diary-form" id="nww-diary-form">
         <div class="nww-diary-form-grid">
           <label class="nww-diary-field">
@@ -71,10 +75,23 @@
               <option value="">Choose season</option>
             </select>
           </label>
-          <label class="nww-diary-field nww-diary-field-series" id="nww-diary-episode-field">
-            <span class="nww-diary-label">Episode</span>
-            <select class="nww-diary-input" id="nww-diary-episode-input" name="episode">
-              <option value="">Choose episode</option>
+          <div class="nww-diary-field nww-diary-field-series nww-diary-field-series-toggle" id="nww-diary-single-episode-field">
+            <span class="nww-diary-label">Entry shape</span>
+            <label class="nww-diary-inline-check">
+              <input id="nww-diary-single-episode-input" name="singleEpisode" type="checkbox" />
+              <span>Single episode</span>
+            </label>
+          </div>
+          <label class="nww-diary-field nww-diary-field-series" id="nww-diary-episode-from-field">
+            <span class="nww-diary-label">From</span>
+            <select class="nww-diary-input" id="nww-diary-episode-from-input" name="episodeFrom">
+              <option value="">Choose start episode</option>
+            </select>
+          </label>
+          <label class="nww-diary-field nww-diary-field-series" id="nww-diary-episode-to-field">
+            <span class="nww-diary-label">To</span>
+            <select class="nww-diary-input" id="nww-diary-episode-to-input" name="episodeTo">
+              <option value="">Choose end episode</option>
             </select>
           </label>
           <label class="nww-diary-field">
@@ -103,9 +120,10 @@
             <input type="checkbox" id="nww-diary-rewatch-input" name="rewatch" />
             <span>Rewatch</span>
           </label>
-          <button class="nww-diary-submit" id="nww-diary-submit" type="submit">Add entry</button>
+          <button class="nww-diary-submit" id="nww-diary-submit" type="submit">Save entry</button>
         </div>
       </form>
+      </div>
 
       <div class="nww-diary-entries-header">
         <div class="nww-diary-entries-title">Timeline</div>
@@ -147,6 +165,17 @@
       </div>
     </aside>
   </main>
+
+  <div class="watch-diary-confirm-backdrop" id="watch-diary-confirm-backdrop" hidden>
+    <div class="watch-diary-confirm" role="dialog" aria-modal="true" aria-labelledby="watch-diary-confirm-title" aria-describedby="watch-diary-confirm-copy">
+      <div class="watch-diary-confirm-title" id="watch-diary-confirm-title">Delete entry?</div>
+      <div class="watch-diary-confirm-copy" id="watch-diary-confirm-copy">This watch log entry will be removed from your diary.</div>
+      <div class="watch-diary-confirm-actions">
+        <button class="watch-diary-confirm-cancel" id="watch-diary-confirm-cancel" type="button">Cancel</button>
+        <button class="watch-diary-confirm-delete" id="watch-diary-confirm-delete" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Now Watching Widget -->
   <div id="nww" class="nww nww--idle">

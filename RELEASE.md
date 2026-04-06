@@ -4,6 +4,20 @@
 
 ## Latest — 2026-04-06
 
+### Film Deep Links
+- Every film modal now has its own URL — share or bookmark a direct link to any film
+- Opening a modal updates the address bar; the back button closes it and returns to the grid
+- Visiting a link for a film not in your collection shows its details with quick-add buttons for all five lists (Collection, Watch Tonight, Wildcard, Meh, Don't Rec)
+
+### Watching Diary — Composer
+- The add-entry form is now collapsed by default; an "Add a record" button opens it inline
+- Form opens automatically when a Watch Now session ends, pre-filled with the session data
+- Delete confirmation dialog replaces the previous immediate-delete behaviour
+
+### Bug Fixes
+- Film details were not loading for titles stored under their original non-English name — now resolved by passing the film's TMDB ID directly when available, with a year-less fallback search
+- "Not in your collection" bar was showing on all film modals — CSS specificity conflict fixed
+
 ### URL Routing
 - Every list is now directly linkable: `/movies.html#collection`, `#watchlist`, `#wildcard`, `#meh`, `#dont-recommend`, `#anticipated`
 - Active sort is preserved in the URL as `?sort=date` (or `rt`, `imdb`) — sharing or bookmarking a link restores both the view and the sort
