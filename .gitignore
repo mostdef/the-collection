@@ -12,3 +12,4 @@ persona-images/
 images/generated-*
 *.pen
 _private/
+test-results/

@@ -2412,6 +2412,13 @@ function renderWatchDiary() {
   if (!list) return;
 
   const entries = sortWatchLog(loadWatchLog());
+
+  // Update entry count in header
+  const countEl = document.getElementById('nww-diary-entry-count');
+  if (countEl) {
+    const logEntries = entries.filter(e => e.type !== 'date_marker');
+    countEl.textContent = logEntries.length ? `${logEntries.length} ${logEntries.length === 1 ? 'entry' : 'entries'}` : '';
+  }
   const footer = diary.addDateBtn?.closest('.nww-diary-timeline-footer') || null;
   const composer = diary.composer || null;
   const todayKey = getDiaryDayKey(new Date().toISOString());

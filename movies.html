@@ -43,8 +43,10 @@
       <div class="nww-diary-header">
         <div class="nww-diary-header-copy">
           <div class="nww-diary-kicker">Watching Diary</div>
-          <div class="nww-diary-title" id="watch-diary-title">Watch Log</div>
-          <div class="nww-diary-subtitle">A private timeline of what you watched, when you stopped, and how each viewing ended.</div>
+          <div class="nww-diary-title-row">
+            <div class="nww-diary-title" id="watch-diary-title">Watch Log</div>
+            <span class="nww-diary-entry-count" id="nww-diary-entry-count"></span>
+          </div>
         </div>
         <button class="nww-diary-close" id="watch-diary-close" type="button" aria-label="Close diary panel">✕</button>
       </div>
@@ -140,21 +142,17 @@
         </div>
       </div>
 
-      <div class="nww-diary-entries-header">
-        <div class="nww-diary-entries-title">Timeline</div>
-      </div>
-
       <div class="nww-diary-entries" id="nww-diary-entries" aria-live="polite">
         <div class="nww-diary-empty">
           <div class="nww-diary-empty-title">No diary entries yet.</div>
           <div class="nww-diary-empty-copy">Use the form above or start a session with Watch Now to add your first entry.</div>
         </div>
-        <div class="nww-diary-timeline-footer">
-          <button class="nww-diary-add-date-btn" id="nww-diary-add-date-btn" type="button">Add date</button>
-          <div class="nww-diary-add-date-inline" id="nww-diary-add-date-inline" hidden>
-            <input class="nww-diary-input" id="nww-diary-add-date-input" type="date" />
-            <button class="nww-diary-add-date-confirm" id="nww-diary-add-date-confirm" type="button">Use date</button>
-          </div>
+      </div>
+      <div class="nww-diary-timeline-footer">
+        <button class="nww-diary-add-date-btn" id="nww-diary-add-date-btn" type="button">Add date</button>
+        <div class="nww-diary-add-date-inline" id="nww-diary-add-date-inline" hidden>
+          <input class="nww-diary-input" id="nww-diary-add-date-input" type="date" />
+          <button class="nww-diary-add-date-confirm" id="nww-diary-add-date-confirm" type="button">Use date</button>
         </div>
       </div>
       </div>

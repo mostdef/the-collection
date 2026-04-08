@@ -2,6 +2,13 @@
 
 ---
 
+## Latest — 2026-04-09
+
+### Watching Diary
+- Watch Log header now shows a live entry count, so you can see the size of the log at a glance
+- Add Date now sits inside the timeline flow instead of feeling detached from the rest of the diary
+- Diary panel spacing, close control, and top chrome were refined to make the side rail feel cleaner and more structured
+
 ## Latest — 2026-04-08
 
 ### Watch Log — Film Modal
