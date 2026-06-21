@@ -21,7 +21,7 @@ module.exports = async function handler(req, res) {
     try {
       const today = new Date().toISOString().slice(0, 10);
       const collected = [];
-      const seenIds = new Set();
+      const seenKeys = new Set();
       let totalPages = 999; // updated after first fetch
 
       // Each client page maps to a non-overlapping window of 6 TMDB pages
@@ -37,31 +37,78 @@ module.exports = async function handler(req, res) {
         const upcoming = await upRes.json();
         totalPages = upcoming.total_pages || 1;
         for (const m of (upcoming.results || [])) {
-          if (m.release_date && m.release_date > today && !seenIds.has(m.id)) {
-            seenIds.add(m.id);
-            collected.push(m);
+          const key = `movie:${m.id}`;
+          if (m.release_date && m.release_date > today && !seenKeys.has(key)) {
+            seenKeys.add(key);
+            collected.push({ media_type: 'movie', raw: m, release_date: m.release_date });
           }
         }
         fetchPage++;
       }
 
-      const top = collected.slice(0, 30);
-      const results = await Promise.all(top.map(async m => {
-        let director = null;
+      const tvStart = (page - 1) * 3 + 1;
+      for (let tvPage = tvStart; tvPage < tvStart + 3; tvPage++) {
+        const tvRes = await fetch(`${TMDB_BASE}/tv/on_the_air?language=en-US&page=${tvPage}`, { headers });
+        const tvData = await tvRes.json();
+        for (const series of (tvData.results || [])) {
+          const key = `tv:${series.id}`;
+          if (seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          collected.push({ media_type: 'tv', raw: series, release_date: series.first_air_date || null });
+        }
+      }
+
+      const detailed = await Promise.all(collected.slice(0, 45).map(async (entry) => {
+        if (entry.media_type === 'movie') {
+          const m = entry.raw;
+          let director = null;
+          try {
+            const detRes = await fetch(`${TMDB_BASE}/movie/${m.id}?append_to_response=credits&language=en-US`, { headers });
+            const det = await detRes.json();
+            director = det.credits?.crew?.find(c => c.job === 'Director')?.name || null;
+          } catch {}
+          return {
+            title: m.title,
+            year: m.release_date ? parseInt(m.release_date) : null,
+            poster: m.poster_path ? `${TMDB_IMG}w200${m.poster_path}` : null,
+            tmdb_id: m.id,
+            release_date: m.release_date,
+            director,
+            media_type: 'movie',
+            upcoming_label: null,
+          };
+        }
+
+        const series = entry.raw;
         try {
-          const detRes = await fetch(`${TMDB_BASE}/movie/${m.id}?append_to_response=credits&language=en-US`, { headers });
+          const detRes = await fetch(`${TMDB_BASE}/tv/${series.id}?language=en-US`, { headers });
           const det = await detRes.json();
-          director = det.credits?.crew?.find(c => c.job === 'Director')?.name || null;
-        } catch {}
-        return {
-          title:        m.title,
-          year:         m.release_date ? parseInt(m.release_date) : null,
-          poster:       m.poster_path ? `${TMDB_IMG}w200${m.poster_path}` : null,
-          tmdb_id:      m.id,
-          release_date: m.release_date,
-          director,
-        };
+          const next = det.next_episode_to_air;
+          if (!next?.air_date || next.air_date <= today) return null;
+          return {
+            title: det.name,
+            year: det.first_air_date ? parseInt(det.first_air_date) : null,
+            poster: det.poster_path ? `${TMDB_IMG}w200${det.poster_path}` : null,
+            tmdb_id: det.id,
+            release_date: next.air_date,
+            director: (det.created_by || []).map((person) => person.name).join(', ') || null,
+            media_type: 'tv',
+            upcoming_label: next.season_number ? `Season ${next.season_number}` : 'Upcoming episode',
+          };
+        } catch {
+          return null;
+        }
       }));
+
+      const results = detailed
+        .filter(Boolean)
+        .sort((a, b) => String(a.release_date || '').localeCompare(String(b.release_date || '')))
+        .slice(0, 30);
+
+      if (!results.length) {
+        return res.json({ results: [], page, total_pages: 1 });
+      }
+
       // Convert TMDB total_pages to client pages (each client page covers 6 TMDB pages)
       const clientTotalPages = Math.ceil(totalPages / 6);
       return res.json({ results, page, total_pages: clientTotalPages });
@@ -99,6 +146,7 @@ module.exports = async function handler(req, res) {
       imdb_rating: null,
       rt_score: null,
       media_type: item.media_type,
+      upcoming_label: null,
     })));
   }
 
@@ -121,6 +169,8 @@ module.exports = async function handler(req, res) {
         tmdb_rating:  m.vote_count > 10 ? parseFloat(m.vote_average.toFixed(1)) : null,
         imdb_rating:  null,
         rt_score:     null,
+        media_type:   'movie',
+        upcoming_label: null,
       };
 
       // Only fetch OMDB for first 5 to keep latency low

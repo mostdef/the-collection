@@ -92,6 +92,9 @@ All keys prefixed `thecollection_`:
 | `thecollection_rec_cache` | Cached last recommendation |
 | `thecollection_taste_signals` | Watch session outcome signals (array, newest first, max 50) |
 | `thecollection_watch_log` | Watching diary / watch log entries (array, newest first) |
+| `thecollection_rec_movies` | Recommendation sub-toggle: films/documentaries enabled (`'1'` default, `'0'` disabled) |
+| `thecollection_rec_tv` | Recommendation sub-toggle: TV series enabled (`'1'` default, `'0'` disabled) |
+| `thecollection_media_filter` | Global list-nav media filter: `'all'` or `'tv'` |
 | `thecollection_wtw_country` | User's selected country code for "Where to watch" (ISO 3166-1 alpha-2, e.g. `PL`) |
 | `thecollection_providers_<tmdb_id>` | Cached watch provider data per film `{ data, ts }` — 24h TTL |
 | `thecollection_anticipated` | Anticipated list — `[{ title, year, director, poster, release_date, addedAt }]` sorted chronologically on render |
@@ -148,6 +151,7 @@ All keys prefixed `thecollection_`:
 ## External APIs
 - **Anthropic SDK** — recommendations, persona generation (model: sonnet or opus, user-switchable)
 - **OMDB** — movie search and details
+- **TMDB TV** — TV search, rich series details, upcoming season support
 
 ## Design Rules
 - Always read `.impeccable.md` before touching any UI

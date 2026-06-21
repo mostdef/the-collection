@@ -26,7 +26,18 @@
 
   <main class="movies-layout" id="movies-layout">
     <div class="movies-content" id="movies-content">
-      <div class="recommendation" id="recommendation"></div>
+      <div class="recommendation" id="recommendation">
+        <div class="rec-type-toggles" id="rec-type-toggles">
+          <label class="rec-type-toggle" for="rec-movies-checkbox">
+            <input type="checkbox" id="rec-movies-checkbox" checked>
+            <span>Recommend films</span>
+          </label>
+          <label class="rec-type-toggle" for="rec-tv-checkbox">
+            <input type="checkbox" id="rec-tv-checkbox" checked>
+            <span>Recommend TV series</span>
+          </label>
+        </div>
+      </div>
       <div class="grid-nav" id="grid-nav"></div>
       <div id="standards-wrap"></div>
       <div id="persona-wrap"></div>

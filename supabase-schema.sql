@@ -35,7 +35,9 @@ alter table user_data
   add column if not exists ai_enabled      boolean       not null default true,
   add column if not exists spend_month     numeric(10,6) not null default 0,
   add column if not exists spend_cap       numeric(10,6) not null default 3.0,
-  add column if not exists spend_month_key text          not null default '';
+  add column if not exists spend_month_key text          not null default '',
+  add column if not exists rec_movies      boolean       not null default true,
+  add column if not exists rec_tv          boolean       not null default true;
 
 -- Row Level Security
 alter table user_data enable row level security;

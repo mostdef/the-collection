@@ -25,9 +25,9 @@ let pendingStandardsSlot = null;
 function getViewList(view)       { return view === 'collection' ? movies : ({ watchlist: loadWatchlist, maybe: loadMaybe, meh: loadMeh, banned: loadBanned }[view])(); }
 function saveViewList(view, list){ if (view === 'collection') { movies.splice(0, movies.length, ...list); saveMovies(); } else ({ watchlist: saveWatchlist, maybe: saveMaybe, meh: saveMeh, banned: saveBanned }[view])(list); }
 
-function moveBetweenViews(title, fromView, toView) {
+function moveBetweenViews(title, fromView, toView, mediaType = 'movie') {
   const src = getViewList(fromView);
-  const idx  = src.findIndex(m => m.title === title);
+  const idx  = src.findIndex(m => mediaKey(m.title, m.media_type) === mediaKey(title, mediaType));
   if (idx === -1) return;
   const [movie] = src.splice(idx, 1);
   saveViewList(fromView, src);
@@ -663,7 +663,7 @@ function toggleStandard(movie) {
     stds.splice(idx, 1);
   } else {
     if (stds.length >= MAX_STANDARDS) return false;
-    stds.push({ title: movie.title, year: movie.year, director: movie.director, poster: movie.poster });
+    stds.push(makeListEntry(movie));
   }
   saveStandards(stds);
   return true;
@@ -678,7 +678,7 @@ function render(list) {
   const nwData = loadNowWatching();
   const liveTitle = nwData ? nwData.title : null;
   const sessionedTitles = getSessionedTitles();
-  const filteredList = list.filter(movie => !standardTitles.has(movie.title));
+  const filteredList = applyMediaFilter(list.filter(movie => !standardTitles.has(movie.title)));
   const releasedMovies = filteredList.filter(m => !isFutureRelease(m));
   const upcomingMovies = filteredList.filter(m => isFutureRelease(m));
   [...releasedMovies, ...(upcomingMovies.length ? [null] : []), ...upcomingMovies].forEach(movie => {
@@ -709,12 +709,19 @@ const sessionExcluded = new Set();
 const REC_CACHE_KEY      = 'thecollection_rec_cache_v2';
 const REC_MODEL_KEY      = 'thecollection_rec_model';
 const REC_ENABLED_KEY    = 'thecollection_rec_enabled';
+const REC_MOVIES_KEY     = 'thecollection_rec_movies';
+const REC_TV_KEY         = 'thecollection_rec_tv';
+const MEDIA_FILTER_KEY   = 'thecollection_media_filter';
 const STARTING_BAL_KEY   = 'thecollection_starting_balance';
 const AI_ENABLED_KEY     = 'thecollection_ai_enabled';
 const AI_BUFFER_KEY      = 'thecollection_ai_buffer';
 
 function isRecEnabled() { return localStorage.getItem(REC_ENABLED_KEY) === '1'; }
 function setRecEnabled(v) { localStorage.setItem(REC_ENABLED_KEY, v ? '1' : '0'); }
+function isRecMoviesEnabled() { return localStorage.getItem(REC_MOVIES_KEY) !== '0'; }
+function setRecMoviesEnabled(v) { localStorage.setItem(REC_MOVIES_KEY, v ? '1' : '0'); schedulePush(); }
+function isRecTvEnabled() { return localStorage.getItem(REC_TV_KEY) !== '0'; }
+function setRecTvEnabled(v) { localStorage.setItem(REC_TV_KEY, v ? '1' : '0'); schedulePush(); }
 function isAiEnabled() { return localStorage.getItem(AI_ENABLED_KEY) === '1'; }
 function setAiEnabled(v) {
   localStorage.setItem(AI_ENABLED_KEY, v ? '1' : '0');
@@ -731,6 +738,52 @@ function setAiEnabled(v) {
 function loadAiBuffer() { try { return JSON.parse(localStorage.getItem(AI_BUFFER_KEY) || '[]'); } catch { return []; } }
 function saveAiBuffer(buf) { localStorage.setItem(AI_BUFFER_KEY, JSON.stringify(buf)); }
 
+function normalizeMediaType(value) {
+  return value === 'tv' ? 'tv' : 'movie';
+}
+
+function isTvEntry(entry) {
+  return normalizeMediaType(entry?.media_type) === 'tv';
+}
+
+function mediaKey(title, mediaType = 'movie') {
+  return `${normalizeMediaType(mediaType)}:${(title || '').trim().toLowerCase()}`;
+}
+
+function mediaLabel(entry) {
+  return isTvEntry(entry) ? 'TV Series' : 'Movie';
+}
+
+function mediaRoleLabel(entry) {
+  return isTvEntry(entry) ? 'Creator' : 'Director';
+}
+
+function makeListEntry(source, extra = {}) {
+  return {
+    title: source.title,
+    year: source.year || null,
+    director: source.director || '',
+    poster: source.poster || '',
+    media_type: normalizeMediaType(source.media_type),
+    tmdb_id: source.tmdb_id || source.tmdbId || null,
+    release_date: source.release_date || null,
+    ...extra,
+  };
+}
+
+function getMediaFilter() {
+  return localStorage.getItem(MEDIA_FILTER_KEY) === 'tv' ? 'tv' : 'all';
+}
+
+function setMediaFilter(mode) {
+  localStorage.setItem(MEDIA_FILTER_KEY, mode === 'tv' ? 'tv' : 'all');
+}
+
+function applyMediaFilter(list) {
+  if (getMediaFilter() !== 'tv') return list;
+  return list.filter((item) => isTvEntry(item));
+}
+
 function getRecModel() {
   return localStorage.getItem(REC_MODEL_KEY) || 'sonnet';
 }
@@ -743,23 +796,24 @@ const MAX_SHOWN_RECS  = 20;
 function loadShownRecs() {
   try { return JSON.parse(localStorage.getItem(SHOWN_RECS_KEY) || '[]'); } catch { return []; }
 }
-function saveShownRec(title) {
+function saveShownRec(title, mediaType = 'movie') {
   try {
-    const list = loadShownRecs().filter(t => t !== title.toLowerCase());
-    list.unshift(title.toLowerCase());
+    const key = mediaKey(title, mediaType);
+    const list = loadShownRecs().filter(t => t !== key);
+    list.unshift(key);
     localStorage.setItem(SHOWN_RECS_KEY, JSON.stringify(list.slice(0, MAX_SHOWN_RECS)));
   } catch {}
 }
 
 function buildExcluded() {
   return new Set([
-    ...movies.map(m => m.title.toLowerCase()),
-    ...loadBanned().map(m => m.title.toLowerCase()),
-    ...loadWatchlist().map(m => m.title.toLowerCase()),
-    ...loadMaybe().map(m => m.title.toLowerCase()),
-    ...loadMeh().map(m => m.title.toLowerCase()),
-    ...loadStandards().map(m => m.title.toLowerCase()),
-    ...[...sessionExcluded].map(t => t.toLowerCase()),
+    ...movies.map(m => mediaKey(m.title, m.media_type)),
+    ...loadBanned().map(m => mediaKey(m.title, m.media_type)),
+    ...loadWatchlist().map(m => mediaKey(m.title, m.media_type)),
+    ...loadMaybe().map(m => mediaKey(m.title, m.media_type)),
+    ...loadMeh().map(m => mediaKey(m.title, m.media_type)),
+    ...loadStandards().map(m => mediaKey(m.title, m.media_type)),
+    ...[...sessionExcluded].map(t => String(t).includes(':') ? t.toLowerCase() : mediaKey(t)),
     ...loadShownRecs(),
   ]);
 }
@@ -770,11 +824,13 @@ async function doFetchRec(excluded, attempt = 0) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      movies:    movies.map(({ title, year, director }) => ({ title, year, director })),
+      movies:    movies.map(({ title, year, director, media_type }) => ({ title, year, director, media_type: normalizeMediaType(media_type) })),
       excluded:  [...excluded],
-      standards: loadStandards().map(({ title, year, director }) => ({ title, year, director })),
-      banned:    loadBanned().map(({ title, year, director }) => ({ title, year, director })),
+      standards: loadStandards().map(({ title, year, director, media_type }) => ({ title, year, director, media_type: normalizeMediaType(media_type) })),
+      banned:    loadBanned().map(({ title, year, director, media_type }) => ({ title, year, director, media_type: normalizeMediaType(media_type) })),
       model:     getRecModel(),
+      recMovies: isRecMoviesEnabled(),
+      recTv:     isRecTvEnabled(),
     }),
   });
   if (!res.ok) {
@@ -789,8 +845,8 @@ async function doFetchRec(excluded, attempt = 0) {
     throw new Error('api_error');
   }
   const rec = await res.json();
-  if (rec?.title && excluded.has(rec.title.toLowerCase())) {
-    sessionExcluded.add(rec.title);
+  if (rec?.title && excluded.has(mediaKey(rec.title, rec.media_type))) {
+    sessionExcluded.add(mediaKey(rec.title, rec.media_type));
     return doFetchRec(buildExcluded(), attempt + 1);
   }
   if (!rec?.title || !rec?.reason || rec.reason.toLowerCase().startsWith('placeholder')) {
@@ -815,7 +871,7 @@ function saveRecCache(rec) {
 
 async function fetchRecommendation() {
   // When AI master toggle or rec sub-toggle is off, show cached/disabled state
-  if (!isAiEnabled() || !isRecEnabled()) {
+  if (!isAiEnabled() || !isRecEnabled() || (!isRecMoviesEnabled() && !isRecTvEnabled())) {
     const cached = loadRecCache();
     if (cached?.title) {
       // Only exclude titles actually in user's lists, not shown-recs history
@@ -858,7 +914,7 @@ async function fetchRecommendation() {
     const isPlaceholder = !rec?.title || rec?.reason === 'placeholder' || !rec?.reason;
     if (!isPlaceholder) {
       sessionExcluded.add(rec.title);
-      saveShownRec(rec.title);
+      saveShownRec(rec.title, rec.media_type);
       rec._model = getRecModel();
       currentRec = rec;
       saveRecCache(rec);
@@ -884,6 +940,9 @@ async function fetchRecommendation() {
 // Build the heading row once — never rebuilt, controls are stable DOM
 function initRecHeading() {
   const wrap = document.getElementById('recommendation');
+  const typeToggles = document.getElementById('rec-type-toggles');
+  const recMoviesCheckbox = document.getElementById('rec-movies-checkbox');
+  const recTvCheckbox = document.getElementById('rec-tv-checkbox');
 
   const headingRow = document.createElement('div');
   headingRow.id = 'rec-heading-row';
@@ -942,6 +1001,25 @@ function initRecHeading() {
   headingRow.appendChild(rightGroup);
   wrap.appendChild(headingRow);
 
+  if (typeToggles) {
+    if (recMoviesCheckbox) {
+      recMoviesCheckbox.checked = isRecMoviesEnabled();
+      recMoviesCheckbox.addEventListener('change', () => {
+        setRecMoviesEnabled(recMoviesCheckbox.checked);
+        renderRecommendation();
+        if (isAiEnabled() && isRecEnabled() && (isRecMoviesEnabled() || isRecTvEnabled())) fetchRecommendation();
+      });
+    }
+    if (recTvCheckbox) {
+      recTvCheckbox.checked = isRecTvEnabled();
+      recTvCheckbox.addEventListener('change', () => {
+        setRecTvEnabled(recTvCheckbox.checked);
+        renderRecommendation();
+        if (isAiEnabled() && isRecEnabled() && (isRecMoviesEnabled() || isRecTvEnabled())) fetchRecommendation();
+      });
+    }
+  }
+
   // Stable content area — only this gets rebuilt by renderRecommendation()
   const contentArea = document.createElement('div');
   contentArea.id = 'rec-content-area';
@@ -971,6 +1049,16 @@ function renderRecommendation() {
   if (!area) return;
   area.innerHTML = '';
   updateRecCostHint();
+
+  if (isRecEnabled() && !isRecMoviesEnabled() && !isRecTvEnabled()) {
+    const disabledBanner = document.createElement('div');
+    disabledBanner.className = 'rec-banner rec-banner-error';
+    const msg = document.createElement('span');
+    msg.textContent = 'Enable at least one recommendation type to keep suggestions flowing.';
+    disabledBanner.appendChild(msg);
+    area.appendChild(disabledBanner);
+    return;
+  }
 
   if (recLoading) {
     const loadingBanner = document.createElement('div');
@@ -1069,6 +1157,10 @@ function renderRecommendation() {
   const info = document.createElement('div');
   info.className = 'rec-info';
 
+  const typeTag = document.createElement('span');
+  typeTag.className = 'rec-type-tag';
+  typeTag.textContent = rec.type_label || mediaLabel(rec);
+
   const title = document.createElement('span');
   title.className = 'rec-title';
   title.textContent = rec.title;
@@ -1084,7 +1176,7 @@ function renderRecommendation() {
   const writtenBy = document.createElement('span');
   writtenBy.className = 'rec-writers';
   if (rec.writers && rec.writers.length) {
-    writtenBy.textContent = `Screenplay · ${rec.writers.join(', ')}`;
+    writtenBy.textContent = `${isTvEntry(rec) ? 'Created by' : 'Screenplay'} · ${rec.writers.join(', ')}`;
   }
 
   const ratings = document.createElement('div');
@@ -1145,13 +1237,13 @@ function renderRecommendation() {
 
   const watchBtn = document.createElement('button');
   watchBtn.className = 'rec-btn rec-btn-watchlist';
-  const alreadyWatchlisted = loadWatchlist().some(m => m.title === rec.title);
+  const alreadyWatchlisted = loadWatchlist().some(m => mediaKey(m.title, m.media_type) === mediaKey(rec.title, rec.media_type));
   watchBtn.innerHTML = `${ICON_CHECK}<span>${alreadyWatchlisted ? 'On watchlist' : 'Add to watchlist'}</span>`;
   watchBtn.addEventListener('click', () => {
     prefetchNextRec();
     const list = loadWatchlist();
-    if (!list.some(m => m.title === rec.title)) {
-      list.unshift({ title: rec.title, year: rec.year, director: rec.director, poster: rec.poster, addedAt: Date.now() });
+    if (!list.some(m => mediaKey(m.title, m.media_type) === mediaKey(rec.title, rec.media_type))) {
+      list.unshift(makeListEntry(rec, { addedAt: Date.now() }));
       saveWatchlist(list);
     }
     setGridView('watchlist');
@@ -1170,7 +1262,7 @@ function renderRecommendation() {
     prefetchNextRec();
     saveSnapshot(`Before banning "${rec.title}"`);
     const list = loadBanned();
-    list.unshift({ title: rec.title, year: rec.year, director: rec.director, poster: rec.poster, addedAt: Date.now() });
+    list.unshift(makeListEntry(rec, { addedAt: Date.now() }));
     saveBanned(list);
     renderGridNav();
     fetchRecommendation();
@@ -1181,7 +1273,7 @@ function renderRecommendation() {
   addBtn.textContent = 'Already Seen';
   addBtn.addEventListener('click', () => {
     prefetchNextRec();
-    movies.unshift({ title: rec.title, year: rec.year, director: rec.director, poster: rec.poster, addedAt: Date.now() });
+    movies.unshift(makeListEntry(rec, { addedAt: Date.now() }));
     saveMovies();
     render(movies);
     applyGrain();
@@ -1190,13 +1282,13 @@ function renderRecommendation() {
 
   const maybeBtn = document.createElement('button');
   maybeBtn.className = 'rec-btn rec-btn-maybe';
-  const alreadyMaybe = loadMaybe().some(m => m.title === rec.title);
+  const alreadyMaybe = loadMaybe().some(m => mediaKey(m.title, m.media_type) === mediaKey(rec.title, rec.media_type));
   maybeBtn.innerHTML = `${ICON_DICE}<span>${alreadyMaybe ? 'In Wildcard' : 'Wildcard'}</span>`;
   maybeBtn.addEventListener('click', () => {
     prefetchNextRec();
     const list = loadMaybe();
-    if (!list.some(m => m.title === rec.title)) {
-      list.unshift({ title: rec.title, year: rec.year, director: rec.director, poster: rec.poster, addedAt: Date.now() });
+    if (!list.some(m => mediaKey(m.title, m.media_type) === mediaKey(rec.title, rec.media_type))) {
+      list.unshift(makeListEntry(rec, { addedAt: Date.now() }));
       saveMaybe(list);
     }
     renderGridNav();
@@ -1205,14 +1297,14 @@ function renderRecommendation() {
 
   const mehBtn = document.createElement('button');
   mehBtn.className = 'rec-btn rec-btn-meh';
-  const alreadyMeh = loadMeh().some(m => m.title === rec.title);
+  const alreadyMeh = loadMeh().some(m => mediaKey(m.title, m.media_type) === mediaKey(rec.title, rec.media_type));
   mehBtn.innerHTML = `<span>${alreadyMeh ? '😐 In Meh' : '😐 Meh'}</span>`;
   mehBtn.addEventListener('click', () => {
     prefetchNextRec();
     saveSnapshot(`Before adding "${rec.title}" to Meh`);
     const list = loadMeh();
-    if (!list.some(m => m.title === rec.title)) {
-      list.unshift({ title: rec.title, year: rec.year, director: rec.director, poster: rec.poster, addedAt: Date.now() });
+    if (!list.some(m => mediaKey(m.title, m.media_type) === mediaKey(rec.title, rec.media_type))) {
+      list.unshift(makeListEntry(rec, { addedAt: Date.now() }));
       saveMeh(list);
     }
     renderGridNav();
@@ -1229,6 +1321,7 @@ function renderRecommendation() {
   posterCol.appendChild(posterWrap);
   posterCol.appendChild(posterButtons);
 
+  info.appendChild(typeTag);
   info.appendChild(title);
   info.appendChild(meta);
   info.appendChild(reason);
@@ -1368,6 +1461,8 @@ async function supabasePush() {
     standards:  JSON.parse(localStorage.getItem(STANDARDS_KEY) || '[]'),
     watch_log:  JSON.parse(localStorage.getItem(WATCH_LOG_KEY)  || '[]'),
     total_cost: parseFloat(localStorage.getItem(TOTAL_COST_KEY) || '0') || 0,
+    rec_movies: isRecMoviesEnabled(),
+    rec_tv:     isRecTvEnabled(),
   };
   fetch('/api/user-data', {
     method: 'PUT',
@@ -1402,6 +1497,8 @@ async function supabaseHydrate() {
     set(WATCH_LOG_KEY,  data.watch_log);
     if (data.total_cost !== undefined) { localStorage.setItem(TOTAL_COST_KEY, String(data.total_cost)); changed = true; }
     if (data.ai_enabled !== undefined) { localStorage.setItem(AI_ENABLED_KEY, data.ai_enabled ? '1' : '0'); changed = true; }
+    if (data.rec_movies !== undefined) { localStorage.setItem(REC_MOVIES_KEY, data.rec_movies ? '1' : '0'); changed = true; }
+    if (data.rec_tv !== undefined) { localStorage.setItem(REC_TV_KEY, data.rec_tv ? '1' : '0'); changed = true; }
     return changed;
   } catch(e) { return false; }
 }
@@ -1423,6 +1520,8 @@ function saveSnapshot(label = '') {
     standards: JSON.parse(localStorage.getItem(STANDARDS_KEY) || '[]'),
     watch_log:     JSON.parse(localStorage.getItem(WATCH_LOG_KEY)      || '[]'),
     taste_signals: JSON.parse(localStorage.getItem(TASTE_SIGNALS_KEY) || '[]'),
+    rec_movies: isRecMoviesEnabled(),
+    rec_tv: isRecTvEnabled(),
     totalCost: totalCost,
   };
   const snapshots = loadSnapshots();
@@ -1449,6 +1548,8 @@ function restoreSnapshot(snap) {
   if (snap.standards) localStorage.setItem(STANDARDS_KEY, JSON.stringify(snap.standards));
   localStorage.setItem(WATCH_LOG_KEY,      JSON.stringify(snap.watch_log     || snap.watchLog || []));
   localStorage.setItem(TASTE_SIGNALS_KEY, JSON.stringify(snap.taste_signals || []));
+  if (snap.rec_movies !== undefined) localStorage.setItem(REC_MOVIES_KEY, snap.rec_movies ? '1' : '0');
+  if (snap.rec_tv !== undefined) localStorage.setItem(REC_TV_KEY, snap.rec_tv ? '1' : '0');
   if (snap.totalCost != null) {
     totalCost = snap.totalCost;
     localStorage.setItem(TOTAL_COST_KEY, totalCost.toFixed(6));
@@ -2041,7 +2142,7 @@ function openWatchLogEntryModal(entry) {
   const title = entry.mediaType === 'tv_episode'
     ? (entry.seriesTitle || entry.title || 'Untitled')
     : (entry.title || 'Untitled');
-  openMovieModalByTitle(title, entry.year || null, { pushUrl: false, tmdbId: entry.tmdbId || null, poster: entry.poster || null, fromDiary: true });
+  openMovieModalByTitle(title, entry.year || null, { pushUrl: false, tmdbId: entry.tmdbId || null, poster: entry.poster || null, fromDiary: true, mediaType: entry.mediaType || entry.media_type });
   pushDiaryModalUrl({ title, year: entry.year || null }, diary.activeTab || 'log');
 }
 
@@ -2805,18 +2906,18 @@ function hasReleasedAnticipated() {
 }
 
 // Remove a title from all other lists so Anticipated is mutually exclusive
-function removeFromOtherLists(title) {
-  const norm = t => t.toLowerCase().trim();
-  const n = norm(title);
-  const m = movies.filter(f => norm(f.title) !== n);
+function removeFromOtherLists(title, mediaType = 'movie') {
+  const targetKey = mediaKey(title, mediaType);
+  const keep = (item) => mediaKey(item.title, item.media_type) !== targetKey;
+  const m = movies.filter(keep);
   if (m.length !== movies.length) { movies = m; saveMovies(); }
-  const wl = loadWatchlist().filter(f => norm(f.title) !== n);
+  const wl = loadWatchlist().filter(keep);
   saveWatchlist(wl);
-  const my = loadMaybe().filter(f => norm(f.title) !== n);
+  const my = loadMaybe().filter(keep);
   saveMaybe(my);
-  const mh = loadMeh().filter(f => norm(f.title) !== n);
+  const mh = loadMeh().filter(keep);
   saveMeh(mh);
-  const bn = loadBanned().filter(f => norm(f.title) !== n);
+  const bn = loadBanned().filter(keep);
   saveBanned(bn);
 }
 
@@ -3083,12 +3184,12 @@ function invalidateTabCounts() { _tabCountCache = null; }
 function getTabCounts() {
   if (!_tabCountCache) {
     _tabCountCache = {
-      collection:  movies.length,
-      watchlist:   loadWatchlist().length,
-      maybe:       loadMaybe().length,
-      meh:         loadMeh().length,
-      banned:      loadBanned().length,
-      anticipated: loadAnticipated().length,
+      collection:  applyMediaFilter(movies).length,
+      watchlist:   applyMediaFilter(loadWatchlist()).length,
+      maybe:       applyMediaFilter(loadMaybe()).length,
+      meh:         applyMediaFilter(loadMeh()).length,
+      banned:      applyMediaFilter(loadBanned()).length,
+      anticipated: applyMediaFilter(loadAnticipated()).length,
     };
   }
   return _tabCountCache;
@@ -3098,6 +3199,7 @@ function getTabCount(key) { return getTabCounts()[key] || 0; }
 function buildNavButtons(container, compact = false) {
   // Build once, then only update on subsequent calls
   let tabRow = container.querySelector('.grid-nav-tabs');
+  let mediaToggle = container.querySelector('.grid-nav-media-toggle');
   if (!tabRow) {
     tabRow = document.createElement('div');
     tabRow.className = 'grid-nav-tabs';
@@ -3129,8 +3231,9 @@ function buildNavButtons(container, compact = false) {
         btn.classList.remove('drop-hover');
         if (!draggedCard || key === gridView) return;
         const title = draggedCard.querySelector('.card-name').textContent;
+        const mediaType = draggedCard.dataset.mediaType || 'movie';
         droppedOnTab = true;
-        moveBetweenViews(title, gridView, key);
+        moveBetweenViews(title, gridView, key, mediaType);
       });
       tabRow.appendChild(btn);
     });
@@ -3156,6 +3259,24 @@ function buildNavButtons(container, compact = false) {
     tabRowWrap.className = 'grid-nav-tab-row';
     tabRowWrap.appendChild(tabRow);
 
+    mediaToggle = document.createElement('div');
+    mediaToggle.className = 'grid-nav-media-toggle';
+    mediaToggle.innerHTML = `
+      <button type="button" class="grid-nav-media-btn" data-media-filter="all">All</button>
+      <button type="button" class="grid-nav-media-btn" data-media-filter="tv">TV only</button>
+    `;
+    mediaToggle.querySelectorAll('[data-media-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.mediaFilter || 'all';
+        if (mode === getMediaFilter()) return;
+        setMediaFilter(mode);
+        invalidateTabCounts();
+        VIEWS.forEach(v => markDirty(v));
+        setGridView(gridView);
+      });
+    });
+    tabRowWrap.appendChild(mediaToggle);
+
     const inner = document.createElement('div');
     inner.className = 'grid-nav-inner';
     inner.appendChild(tabRowWrap);
@@ -3178,6 +3299,10 @@ function buildNavButtons(container, compact = false) {
       compact ? 'compact' : '',
     ].filter(Boolean).join(' ');
     btn.innerHTML = `<span class="grid-nav-icon">${NAV_ICONS[key]}</span><span>${allTabs.find(t=>t.key===key)?.label}</span>${count ? `<span class="grid-nav-count">${count}</span>` : ''}${released ? '<span class="grid-nav-dot"></span>' : ''}`;
+  });
+
+  mediaToggle?.querySelectorAll('[data-media-filter]').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.mediaFilter === getMediaFilter());
   });
 
   // Slide the indicator
@@ -3226,7 +3351,7 @@ function buildNavButtons(container, compact = false) {
 
       const addBtn = document.createElement('button');
       addBtn.className = 'grid-add-btn';
-      addBtn.innerHTML = '+ Add film';
+      addBtn.innerHTML = '+ Add title';
       addBtn.addEventListener('click', () => openSearchModal(gridView));
       sortRow.appendChild(addBtn);
 
@@ -3261,7 +3386,7 @@ function renderGridNav() {
 function renderWatchlistGrid() {
   const g = getGrid('watchlist');
   const standardTitles = new Set(loadStandards().map(m => m.title));
-  const list = sortedList(loadWatchlist(), 'watchlist').filter(m => !standardTitles.has(m.title));
+  const list = applyMediaFilter(sortedList(loadWatchlist(), 'watchlist').filter(m => !standardTitles.has(m.title)));
   g.innerHTML = '';
   if (!list.length) { showEmptyState(g); markClean('watchlist'); return; }
   const _nwWL = loadNowWatching(); const _liveTitleWL = _nwWL ? _nwWL.title : null;
@@ -3297,7 +3422,7 @@ function renderWatchlistGrid() {
 function renderBannedGrid() {
   const g = getGrid('banned');
   const standardTitles = new Set(loadStandards().map(m => m.title));
-  const banned = sortedList(loadBanned(), 'banned').filter(m => !standardTitles.has(m.title));
+  const banned = applyMediaFilter(sortedList(loadBanned(), 'banned').filter(m => !standardTitles.has(m.title)));
   g.innerHTML = '';
   if (!banned.length) { showEmptyState(g); markClean('banned'); return; }
   const _nwBN = loadNowWatching(); const _liveTitleBN = _nwBN ? _nwBN.title : null;
@@ -3333,7 +3458,7 @@ function renderBannedGrid() {
 function renderMaybeGrid() {
   const g = getGrid('maybe');
   const standardTitles = new Set(loadStandards().map(m => m.title));
-  const list = sortedList(loadMaybe(), 'maybe').filter(m => !standardTitles.has(m.title));
+  const list = applyMediaFilter(sortedList(loadMaybe(), 'maybe').filter(m => !standardTitles.has(m.title)));
   g.innerHTML = '';
   if (!list.length) { showEmptyState(g); markClean('maybe'); return; }
   const _nwMB = loadNowWatching(); const _liveTitleMB = _nwMB ? _nwMB.title : null;
@@ -3369,7 +3494,7 @@ function renderMaybeGrid() {
 function renderMehGrid() {
   const g = getGrid('meh');
   const standardTitles = new Set(loadStandards().map(m => m.title));
-  const list = sortedList(loadMeh(), 'meh').filter(m => !standardTitles.has(m.title));
+  const list = applyMediaFilter(sortedList(loadMeh(), 'meh').filter(m => !standardTitles.has(m.title)));
   g.innerHTML = '';
   if (!list.length) { showEmptyState(g); markClean('meh'); return; }
   const _nwMH = loadNowWatching(); const _liveTitleMH = _nwMH ? _nwMH.title : null;
@@ -3416,8 +3541,8 @@ async function fetchUpcomingSuggestions(page = 1) {
     if (!res.ok) return;
     const json = await res.json();
     _upcomingTotalPages = json.total_pages || 1;
-    const seenTitles = new Set(_upcomingSuggestions.map(m => m.title.toLowerCase()));
-    const fresh = (json.results || []).filter(m => !seenTitles.has(m.title.toLowerCase()));
+    const seenTitles = new Set(_upcomingSuggestions.map(m => mediaKey(m.title, m.media_type)));
+    const fresh = (json.results || []).filter(m => !seenTitles.has(mediaKey(m.title, m.media_type)));
     _upcomingSuggestions = [..._upcomingSuggestions, ...fresh];
     _upcomingPage = page;
   } catch {} finally {
@@ -3428,7 +3553,7 @@ async function fetchUpcomingSuggestions(page = 1) {
 
 function renderAnticipated() {
   const g = getGrid('anticipated');
-  const list = loadAnticipated().slice().sort((a, b) => {
+  const list = applyMediaFilter(loadAnticipated()).slice().sort((a, b) => {
     const da = daysUntil(a.release_date) ?? 9999;
     const db = daysUntil(b.release_date) ?? 9999;
     return da - db;
@@ -3442,7 +3567,7 @@ function renderAnticipated() {
     empty.className = 'anticipated-empty';
     empty.innerHTML = `
       <p class="anticipated-empty-msg">Nothing anticipated yet.</p>
-      <button class="grid-add-btn" id="anticipated-add-btn">+ Add film</button>
+      <button class="grid-add-btn" id="anticipated-add-btn">+ Add title</button>
     `;
     g.appendChild(empty);
     empty.querySelector('#anticipated-add-btn').addEventListener('click', () => openSearchModal('anticipated'));
@@ -3451,7 +3576,7 @@ function renderAnticipated() {
     addRow.className = 'grid-sort-row';
     const addBtn = document.createElement('button');
     addBtn.className = 'grid-add-btn';
-    addBtn.innerHTML = '+ Add film';
+    addBtn.innerHTML = '+ Add title';
     addBtn.addEventListener('click', () => openSearchModal('anticipated'));
     addRow.appendChild(addBtn);
     g.appendChild(addRow);
@@ -3471,10 +3596,11 @@ function renderAnticipated() {
       });
       const countdown = document.createElement('div');
       countdown.className = 'anticipated-countdown' + (released ? ' anticipated-countdown--released' : '');
-      countdown.textContent = released ? 'Out now'
+      const headline = released ? 'Out now'
         : days === 0 ? 'Premieres today!'
         : days === 1 ? 'Tomorrow'
         : `In ${days} days`;
+      countdown.innerHTML = `<span>${headline}</span>${movie.upcoming_label ? `<span class="anticipated-countdown-detail">${movie.upcoming_label}</span>` : ''}`;
       card.appendChild(countdown);
       if (released) card.classList.add('anticipated-card--released');
       g.appendChild(card);
@@ -3483,14 +3609,14 @@ function renderAnticipated() {
 
   // ── Coming soon suggestions — always 5 slots ─────────────────────────────
   const _allUserTitles = new Set([
-    ...list.map(a => a.title.toLowerCase()),
-    ...loadBanned().map(m => m.title.toLowerCase()),
-    ...loadMeh().map(m => m.title.toLowerCase()),
-    ...movies.map(m => m.title.toLowerCase()),
-    ...loadWatchlist().map(m => m.title.toLowerCase()),
-    ...loadMaybe().map(m => m.title.toLowerCase()),
+    ...list.map(a => mediaKey(a.title, a.media_type)),
+    ...loadBanned().map(m => mediaKey(m.title, m.media_type)),
+    ...loadMeh().map(m => mediaKey(m.title, m.media_type)),
+    ...movies.map(m => mediaKey(m.title, m.media_type)),
+    ...loadWatchlist().map(m => mediaKey(m.title, m.media_type)),
+    ...loadMaybe().map(m => mediaKey(m.title, m.media_type)),
   ]);
-  const visible = _upcomingSuggestions.filter(m => !_allUserTitles.has(m.title.toLowerCase()));
+  const visible = applyMediaFilter(_upcomingSuggestions.filter(m => !_allUserTitles.has(mediaKey(m.title, m.media_type))));
   const toShow  = visible.slice(0, 5);
 
   // Fetch more if we can't fill 5 slots yet
@@ -3514,9 +3640,9 @@ function renderAnticipated() {
   toShow.forEach(m => {
     const addToAnticipated = () => {
       const current = loadAnticipated();
-      if (current.some(a => a.title.toLowerCase() === m.title.toLowerCase())) return;
-      removeFromOtherLists(m.title);
-      current.push({ title: m.title, year: m.year, poster: m.poster, release_date: m.release_date, addedAt: Date.now() });
+      if (current.some(a => mediaKey(a.title, a.media_type) === mediaKey(m.title, m.media_type))) return;
+      removeFromOtherLists(m.title, m.media_type);
+      current.push(makeListEntry(m, { addedAt: Date.now(), upcoming_label: m.upcoming_label || null }));
       saveAnticipated(current);
       invalidateTabCounts();
       renderAnticipated();
@@ -3532,7 +3658,7 @@ function renderAnticipated() {
           saveBanned(banned);
           invalidateTabCounts();
         }
-        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(m.title, m.media_type));
         renderAnticipated();
         renderGridNav();
       },
@@ -3554,7 +3680,7 @@ function renderAnticipated() {
 
     const badge = document.createElement('div');
     badge.className = 'anticipated-countdown';
-    badge.textContent = formatReleaseDate(m.release_date);
+    badge.innerHTML = `<span>${formatReleaseDate(m.release_date)}</span>${m.upcoming_label ? `<span class="anticipated-countdown-detail">${m.upcoming_label}</span>` : ''}`;
     card.appendChild(badge);
 
     const addBtn = document.createElement('button');
@@ -3862,7 +3988,7 @@ let modalFromDiary = false;
 function openMovieModal(movie, list = null, opts = {}) {
   if (list) {
     modalList  = list;
-    modalIndex = list.findIndex(m => m.title === movie.title);
+    modalIndex = list.findIndex(m => mediaKey(m.title, m.media_type) === mediaKey(movie.title, movie.media_type));
     if (modalIndex === -1) modalIndex = 0;
   }
   if ('anticipatedMode' in opts) modalAnticipatedMode = opts.anticipatedMode;
@@ -3942,7 +4068,7 @@ function openMovieModal(movie, list = null, opts = {}) {
         <div class="mm-meta">${[movie.director, movie.year].filter(Boolean).join(' · ')}</div>
         <div class="mm-tabs mm-tabs-skel" id="mm-skel-tabs">
           <button class="mm-tab mm-tab-active" data-skel="details">Details</button>
-          ${modalAnticipatedMode ? '' : `<button class="mm-tab" data-skel="session">Session</button><button class="mm-tab" data-skel="wtw">Where to watch</button>`}
+          ${modalAnticipatedMode ? '' : `<button class="mm-tab" data-skel="session">Session</button>${isTvEntry(movie) ? '' : '<button class="mm-tab" data-skel="wtw">Where to watch</button>'}`}
         </div>
       </div>
       <div class="mm-tab-content" id="mm-skel-content">${SKEL_DETAILS}</div>
@@ -3961,32 +4087,32 @@ function openMovieModal(movie, list = null, opts = {}) {
     skelPosterCol.append(
       makeAction('mm-watch-btn mm-anticipate-btn', 'Anticipate', () => {
         const current = loadAnticipated();
-        if (!current.some(a => a.title.toLowerCase() === movie.title.toLowerCase())) {
-          removeFromOtherLists(movie.title);
-          current.push({ title: movie.title, year: movie.year, poster: movie.poster, release_date: movie.release_date || null, addedAt: Date.now() });
+        if (!current.some(a => mediaKey(a.title, a.media_type) === mediaKey(movie.title, movie.media_type))) {
+          removeFromOtherLists(movie.title, movie.media_type);
+          current.push(makeListEntry(movie, { release_date: movie.release_date || null, addedAt: Date.now() }));
           saveAnticipated(current); invalidateTabCounts(); renderGridNav();
         }
-        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== movie.title);
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(movie.title, movie.media_type));
         closeMovieModal(); renderAnticipated();
       }),
       makeAction('mm-action-btn mm-action-btn--meh', 'Meh', () => {
         const list = loadMeh();
-        if (!list.find(x => x.title === movie.title)) {
-          removeFromOtherLists(movie.title);
-          list.push({ title: movie.title, year: movie.year, poster: movie.poster });
+        if (!list.find(x => mediaKey(x.title, x.media_type) === mediaKey(movie.title, movie.media_type))) {
+          removeFromOtherLists(movie.title, movie.media_type);
+          list.push(makeListEntry(movie));
           saveMeh(list); invalidateTabCounts(); renderGridNav();
         }
-        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== movie.title);
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(movie.title, movie.media_type));
         closeMovieModal(); renderAnticipated();
       }),
       makeAction('mm-action-btn mm-action-btn--ban', "Don't recommend", () => {
         const list = loadBanned();
-        if (!list.find(x => x.title === movie.title)) {
-          removeFromOtherLists(movie.title);
-          list.push({ title: movie.title, year: movie.year, poster: movie.poster });
+        if (!list.find(x => mediaKey(x.title, x.media_type) === mediaKey(movie.title, movie.media_type))) {
+          removeFromOtherLists(movie.title, movie.media_type);
+          list.push(makeListEntry(movie));
           saveBanned(list); invalidateTabCounts(); renderGridNav();
         }
-        _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== movie.title);
+        _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(movie.title, movie.media_type));
         closeMovieModal(); renderAnticipated();
       }),
     );
@@ -4006,7 +4132,7 @@ function openMovieModal(movie, list = null, opts = {}) {
     });
   });
 
-  const cacheKey = `${movie.title}__${movie.year}`;
+  const cacheKey = `${normalizeMediaType(movie.media_type)}__${movie.title}__${movie.year || ''}__${movie.tmdb_id || ''}`;
   modalCurrentKey = cacheKey;
 
   function getActiveSkelTab() {
@@ -4019,17 +4145,16 @@ function openMovieModal(movie, list = null, opts = {}) {
     return;
   }
 
-  const detailsParams = new URLSearchParams({ title: movie.title });
-  if (movie.year) detailsParams.set('year', movie.year);
-  if (movie.tmdb_id) detailsParams.set('tmdb_id', movie.tmdb_id);
-  fetch(`/api/movie-details?${detailsParams}`)
+  const detailsEndpoint = isTvEntry(movie) ? '/api/tv-details' : '/api/movie-details';
+  const detailsParams = buildDetailsParamsForItem(movie);
+  fetch(`${detailsEndpoint}?${detailsParams}`)
     .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
     .then(data => {
       modalDetailsCache.set(cacheKey, data);
       if (modalCurrentKey === cacheKey) renderModalDetails(body, movie, data, getActiveSkelTab(), modalAnticipatedMode, modalFromDiary);
     })
     .catch(err => {
-      console.error('[movie-details]', err);
+      console.error('[details]', err);
       if (modalCurrentKey !== cacheKey) return;
       const skelContent = body.querySelector('#mm-skel-content');
       if (skelContent) {
@@ -4064,20 +4189,26 @@ function mmGetActiveSession(title) {
 }
 
 function renderModalDetails(body, movie, data, initialTab = 'details', anticipatedMode = false, fromDiary = false) {
-  // Backfill director into storage — always prefer fresh API data over stale stored value
-  if (data.director && data.director !== movie.director) {
-    const listKeys = ['movies', 'watchlist', 'maybe', 'meh', 'banned'];
-    const loaders  = { movies: loadMovies, watchlist: loadWatchlist, maybe: loadMaybe, meh: loadMeh, banned: loadBanned };
-    const savers   = { movies: saveMovies, watchlist: saveWatchlist, maybe: saveMaybe, meh: saveMeh, banned: saveBanned };
+  const resolvedCreator = isTvEntry(movie) ? (data.creator || movie.director || '') : (data.director || movie.director || '');
+
+  // Backfill creator/director into storage — always prefer fresh API data over stale stored value
+  if (resolvedCreator && resolvedCreator !== movie.director) {
+    const listKeys = ['movies', 'watchlist', 'maybe', 'meh', 'banned', 'anticipated'];
+    const loaders  = { movies: () => movies, watchlist: loadWatchlist, maybe: loadMaybe, meh: loadMeh, banned: loadBanned, anticipated: loadAnticipated };
+    const savers   = { movies: saveMovies, watchlist: saveWatchlist, maybe: saveMaybe, meh: saveMeh, banned: saveBanned, anticipated: saveAnticipated };
     listKeys.forEach(key => {
-      const arr = loaders[key]() || [];
-      const entry = arr.find(x => x.title === movie.title);
+      const arr = (loaders[key] ? loaders[key]() : []) || [];
+      const entry = arr.find(x => mediaKey(x.title, x.media_type) === mediaKey(movie.title, movie.media_type));
       if (entry && !entry.director) {
-        entry.director = data.director;
+        entry.director = resolvedCreator;
+        if (key === 'anticipated' && isTvEntry(movie)) {
+          if (data.next_episode_to_air?.air_date) entry.release_date = data.next_episode_to_air.air_date;
+          if (data.next_episode_to_air?.season_number) entry.upcoming_label = `Season ${data.next_episode_to_air.season_number}`;
+        }
         savers[key](arr);
       }
     });
-    movie.director = data.director;
+    movie.director = resolvedCreator;
   }
 
   ModalComponent.renderModal(body, movie, data, {
@@ -4086,40 +4217,40 @@ function renderModalDetails(body, movie, data, initialTab = 'details', anticipat
     hideWatchBtn: fromDiary,
     onAnticipate: (m) => {
       const current = loadAnticipated();
-      if (!current.some(a => a.title.toLowerCase() === m.title.toLowerCase())) {
-        removeFromOtherLists(m.title);
-        current.push({ title: m.title, year: m.year, poster: m.poster, release_date: m.release_date || null, addedAt: Date.now() });
+      if (!current.some(a => mediaKey(a.title, a.media_type) === mediaKey(m.title, m.media_type))) {
+        removeFromOtherLists(m.title, m.media_type);
+        current.push(makeListEntry(m, { release_date: m.release_date || null, addedAt: Date.now() }));
         saveAnticipated(current);
         invalidateTabCounts();
         renderGridNav();
       }
-      _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+      _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(m.title, m.media_type));
       closeMovieModal();
       renderAnticipated();
     },
     onMeh: (m) => {
       const list = loadMeh();
-      if (!list.find(x => x.title === m.title)) {
-        removeFromOtherLists(m.title);
-        list.push({ title: m.title, year: m.year, poster: m.poster });
+      if (!list.find(x => mediaKey(x.title, x.media_type) === mediaKey(m.title, m.media_type))) {
+        removeFromOtherLists(m.title, m.media_type);
+        list.push(makeListEntry(m));
         saveMeh(list);
         invalidateTabCounts();
         renderGridNav();
       }
-      _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+      _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(m.title, m.media_type));
       closeMovieModal();
       renderAnticipated();
     },
     onBan: (m) => {
       const list = loadBanned();
-      if (!list.find(x => x.title === m.title)) {
-        removeFromOtherLists(m.title);
-        list.push({ title: m.title, year: m.year, poster: m.poster });
+      if (!list.find(x => mediaKey(x.title, x.media_type) === mediaKey(m.title, m.media_type))) {
+        removeFromOtherLists(m.title, m.media_type);
+        list.push(makeListEntry(m));
         saveBanned(list);
         invalidateTabCounts();
         renderGridNav();
       }
-      _upcomingSuggestions = _upcomingSuggestions.filter(s => s.title !== m.title);
+      _upcomingSuggestions = _upcomingSuggestions.filter(s => mediaKey(s.title, s.media_type) !== mediaKey(m.title, m.media_type));
       closeMovieModal();
       renderAnticipated();
     },
@@ -4183,6 +4314,7 @@ function closeMovieModal() {
 function openMovieModalByTitle(title, year, opts = {}) {
   const norm = t => (t || '').toLowerCase().trim();
   const normTitle = norm(title);
+  const targetMediaType = normalizeMediaType(opts.mediaType);
   const allMovies = [
     ...movies,
     ...loadWatchlist(),
@@ -4194,15 +4326,17 @@ function openMovieModalByTitle(title, year, opts = {}) {
   ];
   // Try title + year match first, then title-only fallback
   let found = year
-    ? allMovies.find(m => norm(m.title) === normTitle && String(m.year) === String(year))
+    ? allMovies.find(m => norm(m.title) === normTitle && String(m.year) === String(year) && normalizeMediaType(m.media_type) === targetMediaType)
     : null;
+  if (!found && year) found = allMovies.find(m => norm(m.title) === normTitle && String(m.year) === String(year));
+  if (!found) found = allMovies.find(m => norm(m.title) === normTitle && normalizeMediaType(m.media_type) === targetMediaType);
   if (!found) found = allMovies.find(m => norm(m.title) === normTitle);
 
   if (found) {
     openMovieModal(found, null, opts);
   } else {
     // Ghost modal: film not in any list
-    const ghost = { title, year: year || null, poster: opts.poster || null, tmdb_id: opts.tmdbId || null };
+    const ghost = { title, year: year || null, poster: opts.poster || null, tmdb_id: opts.tmdbId || null, media_type: targetMediaType };
     openMovieModal(ghost, null, opts);
     // Show the not-found bar with add buttons
     const notFoundBar = document.getElementById('mm-not-found-bar');
@@ -4224,10 +4358,12 @@ function initNotFoundBar(movie, bar) {
       const film = {
         title: movie.title,
         year: movie.year || null,
+        media_type: normalizeMediaType(movie.media_type),
         poster: movie.poster || null,
+        tmdb_id: movie.tmdb_id || movie.tmdbId || null,
         addedAt: Date.now(),
       };
-      removeFromOtherLists(film.title);
+      removeFromOtherLists(film.title, film.media_type);
       if (list === 'collection') {
         movies.unshift(film);
         saveMovies();
@@ -5869,8 +6005,8 @@ function watchTonight(movie, sourceView) {
   const runtimeMin = movie.runtime || 0;
   nwwActivate({ ...movie, runtime: runtimeMin }, sourceView);
 
-  // Always fetch runtime to ensure we have it
-  if (movie.title) {
+  // Always fetch runtime for films to ensure we have it
+  if (movie.title && !isTvEntry(movie)) {
     fetch(`/api/movie-details?title=${encodeURIComponent(movie.title)}&year=${encodeURIComponent(movie.year || '')}`)
       .then(r => r.json())
       .then(d => {
@@ -6001,9 +6137,10 @@ ctxMenu.addEventListener('click', (e) => {
   const btn = e.target.closest('.ctx-item');
   if (!btn || !ctxTarget) return;
   const { title, view } = ctxTarget.dataset;
+  const mediaType = ctxTarget.dataset.mediaType || 'movie';
   if (btn.dataset.action === 'moveto') {
     const toView = btn.dataset.to;
-    moveBetweenViews(title, view, toView);
+    moveBetweenViews(title, view, toView, mediaType);
     const renderers = {
       collection: () => render(sortedList(movies, 'collection')),
       watchlist: renderWatchlistGrid, maybe: renderMaybeGrid, meh: renderMehGrid, banned: renderBannedGrid,
@@ -6032,10 +6169,14 @@ document.querySelector('main').addEventListener('click', (e) => {
   const titleEl = card.querySelector('.card-name');
   if (!titleEl) return;
   const title = titleEl.textContent;
+  const mediaType = card.dataset.mediaType || 'movie';
   const view = card.dataset.view || 'collection';
-  const listMap = { collection: () => movies, watchlist: loadWatchlist, maybe: loadMaybe, meh: loadMeh, banned: loadBanned };
-  const list = sortedList((listMap[view] || (() => movies))(), view);
-  const movie = list.find(m => m.title === title);
+  const listMap = { collection: () => movies, watchlist: loadWatchlist, maybe: loadMaybe, meh: loadMeh, banned: loadBanned, anticipated: loadAnticipated };
+  const rawList = (listMap[view] || (() => movies))();
+  const list = view === 'anticipated'
+    ? rawList.slice().sort((a, b) => (daysUntil(a.release_date) ?? 9999) - (daysUntil(b.release_date) ?? 9999))
+    : sortedList(rawList, view);
+  const movie = list.find(m => m.title === title && normalizeMediaType(m.media_type) === normalizeMediaType(mediaType)) || list.find(m => m.title === title);
   if (movie) openMovieModal(movie, list);
 });
 
@@ -6063,6 +6204,26 @@ const VIEW_RENDERERS = {
   anticipated: renderAnticipated,
 };
 
+function getDetailsEndpointForItem(item) {
+  return isTvEntry(item) ? '/api/tv-details' : '/api/movie-details';
+}
+
+function buildDetailsParamsForItem(item) {
+  const params = new URLSearchParams();
+  if (item.tmdb_id) params.set('tmdb_id', item.tmdb_id);
+  if (item.title) params.set('title', item.title);
+  if (item.year) params.set('year', item.year);
+  return params;
+}
+
+async function fetchDetailsForItem(item) {
+  const params = buildDetailsParamsForItem(item);
+  const endpoint = getDetailsEndpointForItem(item);
+  const res = await fetch(`${endpoint}?${params}`);
+  if (!res.ok) throw new Error(`details_${res.status}`);
+  return res.json();
+}
+
 function openSearchModal(view) {
   searchTargetView = view;
   searchInput.value = '';
@@ -6087,7 +6248,8 @@ function renderSearchResults(hits) {
   const titleToView = new Map();
   [...Object.keys(VIEW_LOADERS), 'anticipated'].forEach(v => {
     (VIEW_LOADERS[v] ? VIEW_LOADERS[v]() : loadAnticipated()).forEach(x => {
-      if (!titleToView.has(x.title)) titleToView.set(x.title, v);
+      const key = mediaKey(x.title, x.media_type);
+      if (!titleToView.has(key)) titleToView.set(key, v);
     });
   });
   hits.forEach(m => {
@@ -6105,7 +6267,7 @@ function renderSearchResults(hits) {
 
     const info = document.createElement('div');
     info.className = 'search-result-info';
-    info.innerHTML = `<span class="search-result-title">${m.title}</span><span class="search-result-year">${m.year || ''}</span>`;
+    info.innerHTML = `<span class="search-result-title">${m.title}</span><span class="search-result-year">${m.year || ''}</span><span class="search-result-type">${mediaLabel(m)}</span>`;
 
     const ratings = document.createElement('div');
     ratings.className = 'search-result-ratings';
@@ -6119,7 +6281,7 @@ function renderSearchResults(hits) {
     }
 
     const VIEW_LABELS = { collection: 'Collection', watchlist: 'To Watch', maybe: 'Wildcard', meh: 'Meh', banned: "Don't Recommend", anticipated: 'Anticipated' };
-    const existingView = titleToView.get(m.title);
+    const existingView = titleToView.get(mediaKey(m.title, m.media_type));
 
     const addBtn = document.createElement('button');
     addBtn.className = 'search-add-btn';
@@ -6136,15 +6298,14 @@ function renderSearchResults(hits) {
       const view = searchTargetView;
       if (view === 'anticipated') {
         const ant = loadAnticipated();
-        if (ant.some(x => x.title === m.title)) { closeSearchModal(); return; }
-        removeFromOtherLists(m.title);
+        if (ant.some(x => mediaKey(x.title, x.media_type) === mediaKey(m.title, m.media_type))) { closeSearchModal(); return; }
+        removeFromOtherLists(m.title, m.media_type);
         ant.unshift({
-          title:        m.title,
-          year:         m.year,
-          director:     '',
-          poster:       m.poster || '',
-          release_date: m.release_date || null,
-          addedAt:      Date.now(),
+          ...makeListEntry(m, {
+            director: '',
+            release_date: m.release_date || null,
+            addedAt: Date.now(),
+          }),
         });
         saveAnticipated(ant);
         invalidateTabCounts();
@@ -6152,34 +6313,37 @@ function renderSearchResults(hits) {
         renderGridNav();
         applyGrain();
         closeSearchModal();
-        // Backfill director
-        fetch(`/api/movie-details?title=${encodeURIComponent(m.title)}&year=${encodeURIComponent(m.year || '')}`)
-          .then(r => r.json())
+        fetchDetailsForItem(m)
           .then(d => {
-            if (!d.director) return;
             const curr = loadAnticipated();
-            const entry = curr.find(x => x.title === m.title);
-            if (entry && !entry.director) { entry.director = d.director; saveAnticipated(curr); renderAnticipated(); }
+            const entry = curr.find(x => mediaKey(x.title, x.media_type) === mediaKey(m.title, m.media_type));
+            if (!entry) return;
+            if (isTvEntry(m)) {
+              entry.director = d.creator || entry.director;
+              if (d.next_episode_to_air?.air_date) entry.release_date = d.next_episode_to_air.air_date;
+              if (d.next_episode_to_air?.season_number) entry.upcoming_label = `Season ${d.next_episode_to_air.season_number}`;
+            } else if (d.director) {
+              entry.director = d.director;
+            }
+            saveAnticipated(curr);
+            renderAnticipated();
           }).catch(() => {});
         return;
       }
       const list = VIEW_LOADERS[view]();
-      if (list.some(x => x.title === m.title)) { closeSearchModal(); return; }
-      list.unshift({ title: m.title, year: m.year, director: '', poster: m.poster || '', addedAt: Date.now() });
+      if (list.some(x => mediaKey(x.title, x.media_type) === mediaKey(m.title, m.media_type))) { closeSearchModal(); return; }
+      list.unshift(makeListEntry(m, { director: '', addedAt: Date.now() }));
       VIEW_SAVERS[view](list);
       VIEW_RENDERERS[view]();
       renderGridNav();
       applyGrain();
       closeSearchModal();
-      // Backfill director from movie details API
-      fetch(`/api/movie-details?title=${encodeURIComponent(m.title)}&year=${encodeURIComponent(m.year || '')}`)
-        .then(r => r.json())
+      fetchDetailsForItem(m)
         .then(d => {
-          if (!d.director) return;
           const curr = VIEW_LOADERS[view]();
-          const entry = curr.find(x => x.title === m.title);
+          const entry = curr.find(x => mediaKey(x.title, x.media_type) === mediaKey(m.title, m.media_type));
           if (entry && !entry.director) {
-            entry.director = d.director;
+            entry.director = isTvEntry(m) ? (d.creator || entry.director) : (d.director || entry.director);
             VIEW_SAVERS[view](curr);
             VIEW_RENDERERS[view]();
             applyGrain();
@@ -6205,7 +6369,7 @@ searchInput.addEventListener('input', () => {
   searchResults.innerHTML = '<div class="search-empty">Searching…</div>';
   searchDebounce = setTimeout(async () => {
     try {
-      const res  = await fetch(`/api/search-movie?q=${encodeURIComponent(q)}`);
+      const res  = await fetch(`/api/search-movie?q=${encodeURIComponent(q)}&scope=all`);
       const hits = await res.json();
       renderSearchResults(hits);
     } catch {

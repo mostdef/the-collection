@@ -1,7 +1,7 @@
 const getAuthenticatedUser = require('./_auth');
 const supabaseAdmin        = require('./_supabase');
 
-const FIELDS = ['movies', 'watchlist', 'maybe', 'meh', 'banned', 'standards', 'watch_log', 'total_cost', 'ai_enabled', 'spend_month', 'spend_cap'];
+const FIELDS = ['movies', 'watchlist', 'maybe', 'meh', 'banned', 'standards', 'watch_log', 'total_cost', 'ai_enabled', 'spend_month', 'spend_cap', 'rec_movies', 'rec_tv'];
 
 const DEFAULTS = {
   movies:      [],
@@ -15,6 +15,8 @@ const DEFAULTS = {
   ai_enabled:  true,
   spend_month: 0,
   spend_cap:   3.00,
+  rec_movies:  true,
+  rec_tv:      true,
 };
 
 module.exports = async function handler(req, res) {
@@ -29,7 +31,7 @@ module.exports = async function handler(req, res) {
 
     const { data, error } = await supabaseAdmin
       .from('user_data')
-      .select('movies, watchlist, maybe, meh, banned, standards, watch_log, total_cost, ai_enabled, spend_month, spend_cap')
+      .select('movies, watchlist, maybe, meh, banned, standards, watch_log, total_cost, ai_enabled, spend_month, spend_cap, rec_movies, rec_tv')
       .eq('user_id', user.id)
       .maybeSingle();
 

@@ -2,6 +2,26 @@
 
 ---
 
+## Latest — 2026-06-21
+
+### TV Series — First-Class Support
+- Films and TV series now live together across all five lists (Collection, To Watch, Wildcard, Meh, Don't Recommend)
+- TV cards show a "TV" badge on the poster and display the creator's name instead of director
+- TV series modals show creator, network, status, season list, episode count, and cast — all with Wikipedia links
+- A media filter in the nav lets you narrow any list to TV-only
+- Recommendations can now include TV series — controlled by separate Movies and TV toggles under the recommendation panel; each can be enabled independently
+- The recommendation engine passes `media_type` to the AI and shows a type tag (Movie, Documentary, TV Series) on each suggestion
+- Anticipated view now includes upcoming TV seasons alongside unreleased films, sourced from TMDB's on-the-air feed
+
+### Watching Diary — Scroll & Layout
+- The diary panel now scrolls correctly — header and tabs stay pinned while the timeline scrolls beneath them
+- Timeline vertical line now ends precisely at the Add Date dot rather than overshooting into padding
+- Add Date button redesigned to match the "Add a record" dashed card style, with an integrated timeline dot
+- "Timeline" section label removed from the top of the log
+- Search dropdown width fixed to 290px
+
+---
+
 ## Latest — 2026-04-09
 
 ### Watching Diary

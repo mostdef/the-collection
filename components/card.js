@@ -117,7 +117,7 @@ const CardComponent = (() => {
   //
   // renderCard(movie, options) → HTMLElement
   //
-  // movie: { title, year, director, poster, imdb_rating?, rt_score? }
+  // movie: { title, year, director, poster, media_type?, imdb_rating?, rt_score? }
   //
   // options: {
   //   view: 'collection'|'watchlist'|'maybe'|'meh'|'banned',
@@ -150,6 +150,7 @@ const CardComponent = (() => {
     card.className = 'card movie-card';
     card.dataset.title = movie.title;
     card.dataset.view = view;
+    card.dataset.mediaType = movie.media_type === 'tv' ? 'tv' : 'movie';
     if (isLive) card.classList.add('movie-card--live');
     if (hasSession) card.classList.add('movie-card--sessioned');
 
@@ -165,6 +166,13 @@ const CardComponent = (() => {
 
     posterWrap.appendChild(img);
     addTexturesToPoster(posterWrap, movie.title);
+
+    if (movie.media_type === 'tv') {
+      const mediaBadge = document.createElement('span');
+      mediaBadge.className = 'card-media-badge';
+      mediaBadge.textContent = 'TV';
+      posterWrap.appendChild(mediaBadge);
+    }
 
     // Star button (collection view — add to Reference Films)
     if (onStarClick) {
@@ -211,7 +219,9 @@ const CardComponent = (() => {
 
     const directorEl = document.createElement('span');
     directorEl.className = 'card-director';
-    directorEl.textContent = movie.director || '';
+    directorEl.textContent = movie.director
+      ? (movie.media_type === 'tv' ? `Creator: ${movie.director}` : movie.director)
+      : '';
 
     const yearEl = document.createElement('span');
     yearEl.className = 'card-year';

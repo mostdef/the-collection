@@ -14,6 +14,8 @@
     'thecollection_standards',
     'thecollection_watch_log',
     'thecollection_total_cost',
+    'thecollection_rec_movies',
+    'thecollection_rec_tv',
   ];
 
   const API_URL = '/api/user-data';

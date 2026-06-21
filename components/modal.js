@@ -141,6 +141,116 @@ const ModalComponent = (() => {
     }
   }
 
+  function renderTvDetailsContent(container, movie, data) {
+    if (data.genres?.length) {
+      const genres = document.createElement('div');
+      genres.className = 'mm-genres';
+      data.genres.forEach((g) => {
+        const tag = document.createElement('span');
+        tag.className = 'mm-genre-tag';
+        tag.textContent = g;
+        genres.appendChild(tag);
+      });
+      container.appendChild(genres);
+    }
+
+    const facts = [
+      { label: 'Creator', value: data.creator, wiki: data.creator_wiki || data.creators?.[0]?.wiki || null },
+      { label: 'Network', value: data.networks?.join(', ') || null },
+      { label: 'Status', value: data.status || null },
+      { label: 'Seasons', value: data.number_of_seasons ? String(data.number_of_seasons) : null },
+      { label: 'Episodes', value: data.number_of_episodes ? String(data.number_of_episodes) : null },
+    ].filter((fact) => fact.value);
+
+    if (facts.length) {
+      const factGrid = document.createElement('div');
+      factGrid.className = 'mm-tv-facts';
+      facts.forEach((fact) => {
+        const row = document.createElement(fact.wiki ? 'a' : 'div');
+        row.className = 'mm-tv-fact';
+        if (fact.wiki) {
+          row.href = fact.wiki;
+          row.target = '_blank';
+          row.rel = 'noopener noreferrer';
+        }
+        row.innerHTML = `<span class="mm-tv-fact-label">${fact.label}</span><span class="mm-tv-fact-value">${fact.value}</span>`;
+        factGrid.appendChild(row);
+      });
+      container.appendChild(factGrid);
+    }
+
+    if (data.tagline) {
+      const tagline = document.createElement('div');
+      tagline.className = 'mm-tagline';
+      tagline.textContent = `"${data.tagline}"`;
+      container.appendChild(tagline);
+    }
+
+    if (data.overview) {
+      const overview = document.createElement('p');
+      overview.className = 'mm-overview';
+      overview.textContent = data.overview;
+      container.appendChild(overview);
+    }
+
+    if (data.seasons?.length) {
+      const seasonLabel = document.createElement('div');
+      seasonLabel.className = 'mm-section-label';
+      seasonLabel.textContent = 'Seasons';
+      container.appendChild(seasonLabel);
+
+      const seasonGrid = document.createElement('div');
+      seasonGrid.className = 'mm-tv-seasons';
+      data.seasons
+        .filter((season) => season.season_number > 0)
+        .forEach((season) => {
+          const chip = document.createElement('div');
+          chip.className = 'mm-tv-season-chip';
+          const suffix = season.episode_count ? ` · ${season.episode_count} eps` : '';
+          chip.textContent = `Season ${season.season_number}${suffix}`;
+          seasonGrid.appendChild(chip);
+        });
+      if (seasonGrid.childElementCount) container.appendChild(seasonGrid);
+    }
+
+    if (data.cast?.length) {
+      const castLabel = document.createElement('div');
+      castLabel.className = 'mm-section-label';
+      castLabel.textContent = 'Cast';
+      container.appendChild(castLabel);
+
+      const castRow = document.createElement('div');
+      castRow.className = 'mm-cast';
+      data.cast.forEach((person) => {
+        const item = document.createElement('a');
+        item.className = 'mm-cast-item';
+        item.href = person.wiki;
+        item.target = '_blank';
+        item.rel = 'noopener noreferrer';
+        const photo = document.createElement('div');
+        photo.className = 'mm-cast-photo';
+        if (person.photo) {
+          const img = document.createElement('img');
+          img.src = person.photo;
+          img.alt = person.name;
+          photo.appendChild(img);
+        } else {
+          photo.classList.add('mm-cast-photo-blank');
+          photo.textContent = person.name[0];
+        }
+        const name = document.createElement('div');
+        name.className = 'mm-cast-name';
+        name.textContent = person.name;
+        const character = document.createElement('div');
+        character.className = 'mm-cast-character';
+        character.textContent = person.character;
+        item.append(photo, name, character);
+        castRow.appendChild(item);
+      });
+      container.appendChild(castRow);
+    }
+  }
+
   // ── Empty session: interactive chat + fact generation ───────────────────────
 
   function mmRenderEmptySession(container, movie, options) {
@@ -471,6 +581,7 @@ const ModalComponent = (() => {
       // Rent + Buy merged into one section, deduped by name
       const rentBuy = [...rent];
       buy.forEach(b => { if (!rentBuy.find(r => r.name === b.name)) rentBuy.push(b); });
+      const hasRentBuy = rentBuy.length > 0;
       if (rentBuy.length) {
         const section = document.createElement('div');
         section.className = 'mm-wtw-section';
@@ -496,7 +607,7 @@ const ModalComponent = (() => {
    * Render fully-loaded modal content into `container`.
    *
    * @param {HTMLElement} container  - The modal body element (will be cleared)
-   * @param {Object}      movie      - { title, year, director, poster }
+   * @param {Object}      movie      - { title, year, director, poster, media_type? }
    * @param {Object}      data       - API response { genres, tagline, overview, imdb_rating,
    *                                   rt_score, runtime, cast, keyCrew, poster, imdb_id, director }
    * @param {Object}      options
@@ -592,7 +703,7 @@ const ModalComponent = (() => {
     } else if (!hideWatchBtn) {
       const watchBtn = document.createElement('button');
       watchBtn.className = 'mm-watch-btn';
-      watchBtn.textContent = 'Watch Tonight';
+      watchBtn.textContent = movie.media_type === 'tv' ? 'Watch This Series' : 'Watch Tonight';
       watchBtn.addEventListener('click', () => {
         if (typeof onWatchTonight === 'function') onWatchTonight(movie);
       });
@@ -609,17 +720,22 @@ const ModalComponent = (() => {
 
     const meta = document.createElement('div');
     meta.className = 'mm-meta';
-    const resolvedDirector = data.director || movie.director || '';
+    const resolvedDirector = data.creator || data.director || movie.director || '';
     if (resolvedDirector) {
       const dirLink = document.createElement('a');
       dirLink.className = 'mm-director-link';
       dirLink.textContent = resolvedDirector;
-      dirLink.href = data.director_wiki || `https://en.wikipedia.org/wiki/${encodeURIComponent(resolvedDirector.replace(/ /g, '_'))}`;
+      dirLink.href = data.creator_wiki || data.director_wiki || `https://en.wikipedia.org/wiki/${encodeURIComponent(resolvedDirector.replace(/ /g, '_'))}`;
       dirLink.target = '_blank';
       dirLink.rel = 'noopener noreferrer';
       meta.appendChild(dirLink);
     }
-    const metaParts = [movie.year, data.runtime ? `${data.runtime} min` : null].filter(Boolean);
+    const metaParts = [
+      movie.year,
+      movie.media_type === 'tv'
+        ? [data.status, data.number_of_seasons ? `${data.number_of_seasons} seasons` : null].filter(Boolean).join(' · ')
+        : (data.runtime ? `${data.runtime} min` : null),
+    ].filter(Boolean);
     if (metaParts.length) {
       const sep = document.createTextNode((resolvedDirector ? ' · ' : '') + metaParts.join(' · '));
       meta.appendChild(sep);
@@ -659,10 +775,13 @@ const ModalComponent = (() => {
     wtwTab.className = 'mm-tab';
     wtwTab.textContent = 'Where to watch';
 
+    const hasWhereToWatch = !anticipatedMode && movie.media_type !== 'tv';
+
     if (anticipatedMode) {
       tabBar.append(detailsTab);
     } else {
-      tabBar.append(detailsTab, sessionTab, wtwTab);
+      tabBar.append(detailsTab, sessionTab);
+      if (hasWhereToWatch) tabBar.append(wtwTab);
     }
     infoHeader.appendChild(tabBar);
     info.appendChild(infoHeader);
@@ -688,7 +807,8 @@ const ModalComponent = (() => {
       infoHeader.classList.add('mm-info-header--no-shadow');
       tabContent.innerHTML = '';
       if (which === 'details') {
-        renderDetailsContent(tabContent, movie, data);
+        if (movie.media_type === 'tv') renderTvDetailsContent(tabContent, movie, data);
+        else renderDetailsContent(tabContent, movie, data);
         detailsContentHeight = tabContent.scrollHeight;
         tabContent.style.minHeight = '';
       } else if (which === 'wtw') {
@@ -702,7 +822,7 @@ const ModalComponent = (() => {
 
     detailsTab.addEventListener('click', () => showTab('details'));
     sessionTab.addEventListener('click', () => showTab('session'));
-    wtwTab.addEventListener('click', () => showTab('wtw'));
+    if (hasWhereToWatch) wtwTab.addEventListener('click', () => showTab('wtw'));
 
     container.append(posterCol, info);
 
@@ -712,5 +832,5 @@ const ModalComponent = (() => {
     if (initialTab !== 'details') showTab(initialTab);
   }
 
-  return { renderModal, renderDetailsContent, renderSessionContent, mmNormalizeTitle, mmGetSessions, mmGetActiveSession };
+  return { renderModal, renderDetailsContent, renderTvDetailsContent, renderSessionContent, mmNormalizeTitle, mmGetSessions, mmGetActiveSession };
 })();

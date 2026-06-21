@@ -9,21 +9,23 @@ function loadTasteProfile() {
     let viewingSignals = null;
     if (vs && vs.session_count > 0) {
       const parts = [vs.summary];
-      if (vs.liked_patterns?.length)    parts.push(`Praised: ${vs.liked_patterns.join('; ')}`);
+      if (vs.liked_patterns?.length) parts.push(`Praised: ${vs.liked_patterns.join('; ')}`);
       if (vs.disliked_patterns?.length) parts.push(`Friction: ${vs.disliked_patterns.join('; ')}`);
-      if (vs.engagement_style?.length)  parts.push(`Engagement: ${vs.engagement_style.join('; ')}`);
+      if (vs.engagement_style?.length) parts.push(`Engagement: ${vs.engagement_style.join('; ')}`);
       viewingSignals = parts.join('\n');
     }
     return { promptSection: profile.prompt_section || null, viewingSignals };
-  } catch { return {}; }
+  } catch {
+    return {};
+  }
 }
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
-const TMDB_IMG  = 'https://image.tmdb.org/t/p/';
+const TMDB_IMG = 'https://image.tmdb.org/t/p/';
 
 const tool = {
-  name: 'recommend_movies',
-  description: 'Recommend exactly 5 distinct films that fit the collection. Return them ranked best-to-worst fit.',
+  name: 'recommend_titles',
+  description: 'Recommend exactly 5 distinct titles that fit the collection. Return them ranked best-to-worst fit.',
   input_schema: {
     type: 'object',
     properties: {
@@ -34,12 +36,14 @@ const tool = {
         items: {
           type: 'object',
           properties: {
-            title:    { type: 'string',  description: 'Film title' },
-            year:     { type: 'integer', description: 'Release year' },
-            director: { type: 'string',  description: 'Director full name' },
-            reason:   { type: 'string',  description: 'Why this fits the collection (1–2 sentences, references specific films already in the list)' },
+            title: { type: 'string', description: 'Title name' },
+            year: { type: 'integer', description: 'Release year or first-air year' },
+            director: { type: 'string', description: 'Director for films or creator for TV' },
+            media_type: { type: 'string', enum: ['movie', 'tv'], description: 'movie for films/documentaries, tv for TV series' },
+            type_label: { type: 'string', description: 'Visible type tag: Movie, Documentary, or TV Series' },
+            reason: { type: 'string', description: 'Why this fits the collection (1–2 sentences, references specific titles already in the list)' },
           },
-          required: ['title', 'year', 'director', 'reason'],
+          required: ['title', 'year', 'director', 'media_type', 'type_label', 'reason'],
         },
       },
     },
@@ -60,60 +64,71 @@ module.exports = async function handler(req, res) {
   const gate = await require('./_ai-gate')(user);
   if (gate) return res.status(402).json(gate);
 
-  const { movies = [], excluded = [], standards = [], banned = [], model = 'sonnet' } = req.body;
+  const {
+    movies = [],
+    excluded = [],
+    standards = [],
+    banned = [],
+    model = 'sonnet',
+    recMovies = true,
+    recTv = true,
+  } = req.body || {};
   const modelId = model === 'opus' ? 'claude-opus-4-6' : 'claude-sonnet-4-6';
 
-  const movieList = movies.length
-    ? movies.map((m, i) => `${i + 1}. "${m.title}" (${m.year}, dir. ${m.director})`).join('\n')
-    : 'empty — recommend a widely acclaimed film';
+  if (!recMovies && !recTv) {
+    return res.status(400).json({ error: 'no_media_types_enabled' });
+  }
+
+  const collectionList = movies.length
+    ? movies.map((m, i) => `${i + 1}. "${m.title}" (${m.year || 'unknown'}, ${entryRoleLabel(m)} ${m.director || 'unknown'}) [${visibleTypeLabel(m)}]`).join('\n')
+    : 'empty — recommend a widely acclaimed title';
 
   const standardsList = standards.length
-    ? standards.map(m => `"${m.title}" (${m.year}, ${m.director})`).join(', ')
+    ? standards.map((m) => `"${m.title}" (${m.year || 'unknown'}, ${entryRoleLabel(m)} ${m.director || 'unknown'}) [${visibleTypeLabel(m)}]`).join(', ')
     : null;
 
-  const excludedSet = new Set(excluded.map(t => normalize(t)));
+  const excludedSet = new Set(excluded.map(normalizeCandidateKey));
 
-  // Count director appearances to detect over-represented ones
   const directorCounts = {};
-  movies.forEach(m => {
-    if (m.director) m.director.split(/[,;]/).map(d => d.trim()).forEach(d => {
-      directorCounts[d] = (directorCounts[d] || 0) + 1;
+  movies.forEach((m) => {
+    if (!m.director) return;
+    m.director.split(/[,;]/).map((name) => name.trim()).filter(Boolean).forEach((name) => {
+      directorCounts[name] = (directorCounts[name] || 0) + 1;
     });
   });
   const saturatedDirectors = Object.entries(directorCounts)
     .filter(([, count]) => count >= 3)
-    .map(([d]) => d);
+    .map(([name]) => name);
 
   const { promptSection, viewingSignals } = loadTasteProfile();
 
+  const enabledTypes = [];
+  if (recMovies) enabledTypes.push('movies and documentaries');
+  if (recTv) enabledTypes.push('TV series');
+  const allowedMediaInstruction = recMovies && recTv
+    ? 'You may recommend feature films, documentaries, or TV series.'
+    : recMovies
+      ? 'You may recommend feature films or documentaries. Never recommend TV series.'
+      : 'You may recommend TV series only. Never recommend films or documentaries.';
+
   const buildPrompt = (extraInstruction = '') => [
-    `You are a film recommendation engine. Analyze this curated movie collection and recommend exactly 5 distinct films the curator is missing. Only recommend feature films — never TV series, miniseries, or documentaries.`,
-    standardsList
-      ? `\n## REFERENCE FILMS\nThese are the curator's all-time favourites and define their taste most precisely. Weight these heavily above all else:\n${standardsList}`
-      : '',
-    promptSection
-      ? `\n## TASTE PROFILE\n${promptSection}`
-      : '',
-    viewingSignals
-      ? `\n## VIEWING SIGNALS\n${viewingSignals}`
-      : '',
-    `\n## COLLECTION\nListed in curator's personal order — films appearing earlier carry more weight and reflect current taste more strongly:\n${movieList}`,
-    excluded.length
-      ? `\n## EXCLUSION LIST\nDo NOT recommend any of these — the curator already knows them:\n${excluded.map(t => `• ${t}`).join('\n')}`
-      : '',
-    saturatedDirectors.length
-      ? `\n## SATURATED DIRECTORS\nAlready heavily represented (3+ films each) — avoid recommending another film by them unless truly exceptional:\n${saturatedDirectors.join(', ')}`
-      : '',
-    banned.length
-      ? `\n## REJECTED FILMS\nThe curator has explicitly rejected these. Do not recommend them, and avoid recommending films with a very similar style, tone, or subject matter:\n${banned.map(m => `• "${m.title}" (${m.year}, ${m.director})`).join('\n')}`
-      : '',
-    `\n## GUIDELINES\nThink laterally — look beyond the obvious. Consider: cinematographers, composers, screenwriters, or producers who worked on films in the collection; international cinema with similar themes; films from the same era with comparable sensibilities. Write a reason (1–2 sentences) that directly references specific films or directors already in the collection.`,
+    `You are a film-and-television recommendation engine. Analyze this curated collection and recommend exactly 5 distinct titles the curator is missing.`,
+    `Allowed recommendation types: ${enabledTypes.join(' + ')}. ${allowedMediaInstruction}`,
+    standardsList ? `\n## REFERENCE TITLES\nThese define the curator's taste most precisely. Weight these heavily above all else:\n${standardsList}` : '',
+    promptSection ? `\n## TASTE PROFILE\n${promptSection}` : '',
+    viewingSignals ? `\n## VIEWING SIGNALS\n${viewingSignals}` : '',
+    `\n## COLLECTION\nListed in curator's personal order — earlier titles carry more weight and reflect current taste more strongly:\n${collectionList}`,
+    excluded.length ? `\n## EXCLUSION LIST\nDo NOT recommend any of these titles:\n${excluded.map((t) => `• ${t}`).join('\n')}` : '',
+    saturatedDirectors.length ? `\n## SATURATED DIRECTORS / CREATORS\nAlready heavily represented (3+ titles each) — avoid recommending another work by them unless truly exceptional:\n${saturatedDirectors.join(', ')}` : '',
+    banned.length ? `\n## REJECTED TITLES\nThe curator has explicitly rejected these. Do not recommend them, and avoid recommending very similar work:\n${banned.map((m) => `• "${m.title}" (${m.year || 'unknown'}, ${entryRoleLabel(m)} ${m.director || 'unknown'}) [${visibleTypeLabel(m)}]`).join('\n')}` : '',
+    '\n## GUIDELINES\nThink laterally — shared cinematographers, writers, networks, eras, national cinemas, adjacent genres, and thematic echoes. Write reasons that reference specific titles already in the collection.',
+    '\nReturn `type_label` as exactly one of: `Movie`, `Documentary`, or `TV Series`.',
     extraInstruction ? `\n## ADDITIONAL INSTRUCTION\n${extraInstruction}` : '',
   ].filter(Boolean).join('\n');
 
   const PRICE = {
-    'claude-sonnet-4-6': { input: 3.00, output: 15.00 },   // $ per 1M tokens
-    'claude-opus-4-6':   { input: 15.00, output: 75.00 },
+    'claude-sonnet-4-6': { input: 3.0, output: 15.0 },
+    'claude-opus-4-6': { input: 15.0, output: 75.0 },
   };
 
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -122,11 +137,10 @@ module.exports = async function handler(req, res) {
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
 
-  // Two rounds maximum; escalate temperature on second round
   for (let round = 0; round < 2 && !rec; round++) {
     const temperature = round === 0 ? 0.8 : 0.95;
     const extraInstruction = round === 1
-      ? 'Your previous 5 candidates were all on the exclusion list. Think more creatively — explore completely different genres, eras, or filmmaking traditions.'
+      ? 'Your previous candidates were unusable. Think more creatively across eras, countries, and formats while still fitting the collection.'
       : '';
 
     let message;
@@ -136,7 +150,7 @@ module.exports = async function handler(req, res) {
         max_tokens: 1024,
         temperature,
         tools: [tool],
-        tool_choice: { type: 'tool', name: 'recommend_movies' },
+        tool_choice: { type: 'tool', name: 'recommend_titles' },
         messages: [{ role: 'user', content: buildPrompt(extraInstruction) }],
       });
     } catch (e) {
@@ -146,22 +160,20 @@ module.exports = async function handler(req, res) {
       return res.status(isOutOfCredits ? 402 : 500).json({ error: isOutOfCredits ? 'out_of_credits' : 'api_error', detail: msg });
     }
 
-    totalInputTokens  += message.usage?.input_tokens  || 0;
+    totalInputTokens += message.usage?.input_tokens || 0;
     totalOutputTokens += message.usage?.output_tokens || 0;
 
-    const toolBlock = message.content.find(b => b.type === 'tool_use');
+    const toolBlock = message.content.find((b) => b.type === 'tool_use');
     const candidates = toolBlock?.input?.candidates || [];
 
-    console.log(`Round ${round} candidates:`, candidates.map(c => `"${c.title}" (${c.year})`).join(', '));
-
     for (const candidate of candidates) {
-      const isExcluded = excludedSet.has(normalize(candidate.title));
+      const mediaType = normalizeMediaType(candidate.media_type);
+      const candidateKey = makeCandidateKey(candidate.title, mediaType);
+      const isExcluded = excludedSet.has(candidateKey);
       const isPlaceholder = !candidate.reason || candidate.reason.toLowerCase().startsWith('placeholder');
-
-      console.log(`  "${candidate.title}" excluded=${isExcluded} placeholder=${isPlaceholder}`);
-
-      if (!isExcluded && !isPlaceholder) {
-        rec = candidate;
+      const isTypeDisabled = (mediaType === 'tv' && !recTv) || (mediaType === 'movie' && !recMovies);
+      if (!isExcluded && !isPlaceholder && !isTypeDisabled) {
+        rec = { ...candidate, media_type: mediaType };
         break;
       }
     }
@@ -173,66 +185,118 @@ module.exports = async function handler(req, res) {
   if (!rec) return res.status(422).json({ error: 'invalid_rec' });
 
   const tmdbHeaders = { Authorization: `Bearer ${process.env.TMDB_TOKEN}` };
+  const mediaType = normalizeMediaType(rec.media_type);
+  const searchPath = mediaType === 'tv' ? 'tv' : 'movie';
+  const titleField = mediaType === 'tv' ? 'name' : 'title';
+  const yearParam = mediaType === 'tv' ? 'first_air_date_year' : 'year';
 
   let searchRes = await fetch(
-    `${TMDB_BASE}/search/movie?query=${encodeURIComponent(rec.title)}&year=${rec.year}&language=en-US`,
+    `${TMDB_BASE}/search/${searchPath}?query=${encodeURIComponent(rec.title)}&${yearParam}=${rec.year || ''}&language=en-US`,
     { headers: tmdbHeaders }
   );
   let search = await searchRes.json();
   if (!search.results?.length) {
     searchRes = await fetch(
-      `${TMDB_BASE}/search/movie?query=${encodeURIComponent(rec.title)}&language=en-US`,
+      `${TMDB_BASE}/search/${searchPath}?query=${encodeURIComponent(rec.title)}&language=en-US`,
       { headers: tmdbHeaders }
     );
     search = await searchRes.json();
   }
-  const tmdbMovie = search.results?.[0];
-  const tmdbId = tmdbMovie?.id;
+  const tmdbItem = search.results?.[0];
+  const tmdbId = tmdbItem?.id;
 
   const [detailsRes, imagesRes, creditsRes] = await Promise.all([
-    tmdbId ? fetch(`${TMDB_BASE}/movie/${tmdbId}`, { headers: tmdbHeaders }) : null,
-    tmdbId ? fetch(`${TMDB_BASE}/movie/${tmdbId}/images?include_image_language=null`, { headers: tmdbHeaders }) : null,
-    tmdbId ? fetch(`${TMDB_BASE}/movie/${tmdbId}/credits`, { headers: tmdbHeaders }) : null,
+    tmdbId ? fetch(`${TMDB_BASE}/${searchPath}/${tmdbId}?language=en-US`, { headers: tmdbHeaders }) : null,
+    tmdbId ? fetch(`${TMDB_BASE}/${searchPath}/${tmdbId}/images?include_image_language=null`, { headers: tmdbHeaders }) : null,
+    tmdbId ? fetch(`${TMDB_BASE}/${searchPath}/${tmdbId}/credits`, { headers: tmdbHeaders }) : null,
   ]);
   const details = detailsRes ? await detailsRes.json() : {};
-  const images  = imagesRes  ? await imagesRes.json()  : {};
+  const images = imagesRes ? await imagesRes.json() : {};
   const credits = creditsRes ? await creditsRes.json() : {};
 
-  const writers = (credits.crew || [])
-    .filter(p => p.job === 'Screenplay' || p.job === 'Story' || p.job === 'Writer')
-    .map(p => p.name)
-    .slice(0, 2);
+  const writers = mediaType === 'tv'
+    ? (details.created_by || []).map((person) => person.name).slice(0, 2)
+    : (credits.crew || [])
+        .filter((person) => person.job === 'Screenplay' || person.job === 'Story' || person.job === 'Writer')
+        .map((person) => person.name)
+        .slice(0, 2);
 
   const imdbId = details.imdb_id || null;
 
-  let imdbRating = null, rtScore = null;
+  let imdbRating = null;
+  let rtScore = null;
   if (imdbId && process.env.OMDB_KEY) {
     const omdbRes = await fetch(`https://www.omdbapi.com/?i=${imdbId}&apikey=${process.env.OMDB_KEY}`);
     const omdb = await omdbRes.json();
     if (omdb.Response === 'True') {
       imdbRating = omdb.imdbRating !== 'N/A' ? omdb.imdbRating : null;
-      const rt = omdb.Ratings?.find(r => r.Source === 'Rotten Tomatoes');
+      const rt = omdb.Ratings?.find((rating) => rating.Source === 'Rotten Tomatoes');
       rtScore = rt ? rt.Value : null;
     }
   }
 
-  const poster = tmdbMovie?.poster_path ? `${TMDB_IMG}w500${tmdbMovie.poster_path}` : null;
-
+  const poster = tmdbItem?.poster_path ? `${TMDB_IMG}w500${tmdbItem.poster_path}` : null;
   const stills = (images.backdrops || [])
-    .filter(b => b.iso_639_1 === null)
+    .filter((backdrop) => backdrop.iso_639_1 === null)
     .sort((a, b) => b.vote_average - a.vote_average)
     .slice(0, 5)
-    .map(b => b.file_path);
+    .map((backdrop) => backdrop.file_path);
 
-  res.json({ ...rec, poster, stills, imdb_id: imdbId, imdb_rating: imdbRating, rt_score: rtScore, writers, api_cost: apiCost, input_tokens: totalInputTokens, output_tokens: totalOutputTokens });
+  const resolvedDirector = mediaType === 'tv'
+    ? ((details.created_by || []).map((person) => person.name).join(', ') || rec.director || null)
+    : ((credits.crew || []).find((person) => person.job === 'Director')?.name || rec.director || null);
+
+  res.json({
+    ...rec,
+    title: tmdbItem?.[titleField] || rec.title,
+    year: rec.year || extractYear(details.first_air_date || details.release_date),
+    director: resolvedDirector,
+    poster,
+    stills,
+    imdb_id: imdbId,
+    imdb_rating: imdbRating,
+    rt_score: rtScore,
+    writers,
+    tmdb_id: tmdbId || null,
+    release_date: mediaType === 'tv' ? (details.first_air_date || null) : (details.release_date || null),
+    api_cost: apiCost,
+    input_tokens: totalInputTokens,
+    output_tokens: totalOutputTokens,
+  });
 };
+
+function normalizeMediaType(mediaType) {
+  return mediaType === 'tv' ? 'tv' : 'movie';
+}
+
+function visibleTypeLabel(entry) {
+  return normalizeMediaType(entry.media_type) === 'tv' ? 'TV Series' : 'Movie';
+}
+
+function entryRoleLabel(entry) {
+  return normalizeMediaType(entry.media_type) === 'tv' ? 'creator' : 'dir.';
+}
+
+function makeCandidateKey(title, mediaType) {
+  return `${normalizeMediaType(mediaType)}:${normalize(title)}`;
+}
+
+function normalizeCandidateKey(value) {
+  if (!value) return '';
+  const [prefix, rest] = String(value).includes(':') ? String(value).split(/:(.+)/) : ['movie', String(value)];
+  return makeCandidateKey(rest, prefix);
+}
+
+function extractYear(dateString) {
+  return dateString ? parseInt(dateString.slice(0, 4), 10) : null;
+}
 
 function normalize(title) {
   if (!title) return '';
   return title
     .toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // strip accents
-    .replace(/[^a-z0-9\s]/g, '')                       // strip punctuation
-    .replace(/^\s*the\s+/, '')                          // strip leading "the"
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/^\s*the\s+/, '')
     .trim();
 }
